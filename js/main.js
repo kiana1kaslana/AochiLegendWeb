@@ -22,5 +22,6 @@ if(typeof module!=="undefined" && module.exports){
     RosterUI, DesignerUI, GlossaryUI, SkillUI, TAG_META, TAG_CATS, TARGET_META, TRIGGER_META, ELEMENTS,
     TARGETS, CLASS_META, clsMeta, clsBadge, SPECIAL_CLASS_META, specMeta, specBadge,
     GROWTH_STYLE, GROWTH_STYLE_PRESETS, GROWTH_STYLE_LABEL, DataIO,
-    STAR_GODS, STAR_GOD_ORDER, MAX_STAR_GODS, STAR_GOD_DEFAULT, ensureStarGods };
+    STAR_GODS, STAR_GOD_ORDER, MAX_STAR_GODS, STAR_GOD_DEFAULT, ensureStarGods,
+    portraitOf };
 }

@@ -612,6 +612,8 @@ class BattleController{
       for(const p of unit.passives||[]){
         if(p.triggerType !== "OnAllyActed") continue;
         if(this.rng() > (p.passiveTriggerChance??1)) continue;
+        // 龙魂为 0：整条被动静默跳过，连「触发被动」的报幕都不发（报了也是空放，只会刷屏）
+        if((p.tags||[]).some(t=>t.type==="DragonSoulAllyRetaliate") && (unit.dragonSouls||0)<=0) continue;
         this.addEvent("Passive", unit, null, 0, `${unit.data.name} 触发被动：${p.name}`);
         // 复用 executeSkill，确保龙魂反击注入（同 DragonSoulAllyRetaliate tag）
         this.executeSkill(unit, p);
@@ -1218,14 +1220,12 @@ class BattleController{
         // 龙魂是「存着、慢慢花」的资源——出手一次花一个，出手越频繁越用得上，这才对。
         // 想爆发就自己连击/连携，而不是靠一次出手把存货倒空。
         //
-        // 龙魂为 0 就直接不触发，这条判断必须写在这里，不能靠外面的技能有没有伤害词条兜底。
+        // 龙魂为 0 就直接不触发（这条判断必须写在这里，不能靠外面的技能有没有伤害词条兜底；
+        // 也不报幕——_processAllyActedPassives 那层已经整条静默，这里再兜一层）
         const atkGrid = caster.isPlayerSide ? this.playerGrid : this.enemyGrid;
         const defGrid = caster.isPlayerSide ? this.enemyGrid : this.playerGrid;
         if(!caster.isAlive) continue;
-        if((caster.dragonSouls||0) <= 0){
-          this.addEvent("Info", caster, null, 0, `  ${caster.data.name} 【龙魂】为 0，追击不触发`);
-          continue;
-        }
+        if((caster.dragonSouls||0) <= 0) continue;
         // 先确认打得到人再扣魂，避免空扣
         const t = this._resolveTargets(caster, "CurrentTarget", atkGrid, defGrid).find(x=>x.isAlive)
                   || defGrid.lowestHpUnit(defGrid.targetableUnits());

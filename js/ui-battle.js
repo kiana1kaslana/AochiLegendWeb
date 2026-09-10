@@ -350,7 +350,12 @@ const Replay = {
         const smu = u.specialClass ? specMeta(u.specialClass) : null;
         const clsMark = (cmu ? `<span class="cls-mark" style="background:${cmu.c}" title="职业：${cmu.n}">${cmu.icon}</span>` : "")
                       + (smu ? `<span class="cls-mark sp" style="background:${smu.c}" title="特殊职业：${smu.n}">${smu.icon}</span>` : "");
+        const portraitUrl = portraitOf(u.id);
+        const portraitTag = portraitUrl
+          ? `<img class="bc-portrait" src="${portraitUrl}" alt="" loading="lazy" onerror="this.remove()">`
+          : `<div class="bc-portrait bc-portrait-fallback" style="background:${el.c}">${u.name[0]}</div>`;
         cell.innerHTML = `
+          ${portraitTag}
           <div class="st-chips">${soulBadge}${immBadge}${revBadge}${chips}</div>
           <div class="top">${clsMark}<span class="uname">${u.name}</span><span class="el-badge" style="background:${el.c}">${el.n}</span></div>
           <div class="bars">

@@ -234,21 +234,21 @@ let CHARS = [
   {id:"char_light_dps",name:"光明祭司",charClass:"balance",maxHp:2900,atk:820,def:190,spd:105,element:"Light",normalAttackId:"atk_light",ultimateId:"ult_light_judgment",passiveIds:["pas_dodge_30"],startingEnergy:50},
   {id:"char_fire_brave",name:"火焰勇者",charClass:"balance",maxHp:3800,atk:750,def:300,spd:90,element:"Fire",normalAttackId:"atk_fire",ultimateId:"ult_aoe_slam",passiveIds:["pas_revive"],startingEnergy:50}
   ,
-  {id:"char_dragon_sovereign",name:"秩序龙尊",charClass:"speed",maxHp:4200,atk:920,def:260,spd:115,element:"Light",normalAttackId:"atk_dragon_sovereign",ultimateId:"ult_dragon_judgment",passiveIds:["pas_dragon_soul_init","pas_dragon_soul_passive","pas_dragon_revive"],startingEnergy:50}
+  {id:"char_dragon_sovereign",name:"秩序龙尊",charClass:"speed",maxHp:4200,atk:920,def:260,spd:115,element:"Light",normalAttackId:"atk_dragon_sovereign",ultimateId:"ult_dragon_judgment",passiveIds:["pas_dragon_soul_init","pas_dragon_soul_passive","pas_dragon_revive"],startingEnergy:50,portrait:"assets/img/char_dragon_sovereign.webp"}
   ,
-  {id:"char_dragon_emberless",name:"无烬龙尊",charClass:"attack",maxHp:3800,atk:1000,def:230,spd:112,element:"Fire",normalAttackId:"atk_dragon_emberless",ultimateId:"ult_dragon_emberless",passiveIds:["pas_emberless_revive"],startingEnergy:50}
+  {id:"char_dragon_emberless",name:"无烬龙尊",charClass:"attack",maxHp:3800,atk:1000,def:230,spd:112,element:"Fire",normalAttackId:"atk_dragon_emberless",ultimateId:"ult_dragon_emberless",passiveIds:["pas_emberless_revive"],startingEnergy:50,portrait:"assets/img/char_dragon_emberless.webp"}
   ,
   // 造物以撒：平衡职业决定属性曲线，英雄是叠加在上面的特殊职业（见 SPECIAL_CLASS_META）
-  {id:"char_isaac",name:"造物以撒",charClass:"balance",specialClass:"hero",maxHp:3400,atk:760,def:260,spd:108,element:"Dark",normalAttackId:"atk_isaac",ultimateId:"ult_isaac",heroSkillId:"hero_creation_force",passiveIds:[],startingEnergy:50}
+  {id:"char_isaac",name:"造物以撒",charClass:"balance",specialClass:"hero",maxHp:3400,atk:760,def:260,spd:108,element:"Dark",normalAttackId:"atk_isaac",ultimateId:"ult_isaac",heroSkillId:"hero_creation_force",passiveIds:[],startingEnergy:50,portrait:"assets/img/char_isaac.webp"}
   ,
   // 阿瑞斯：草系肉盾。靠大招挂的【生息不止】站桩（挨打回 40% 血），挨满 3 次把同排攻击最高的
   // 队友连携出去；被动「生命之王」开局双倍血上限 + 两条满血命。慢速、低攻，纯前排。
-  {id:"char_ares",name:"阿瑞斯",charClass:"tank",maxHp:4400,atk:520,def:380,spd:85,element:"Grass",normalAttackId:"atk_ares",ultimateId:"ult_ares",passiveIds:["pas_ares_king","pas_ares_revive"],startingEnergy:50}
+  {id:"char_ares",name:"阿瑞斯",charClass:"tank",maxHp:4400,atk:520,def:380,spd:85,element:"Grass",normalAttackId:"atk_ares",ultimateId:"ult_ares",passiveIds:["pas_ares_king","pas_ares_revive"],startingEnergy:50,portrait:"assets/img/char_ares.webp"}
   ,
   // 诺亚：光系攻击手。平a【群攻】*2、大招【群攻】*3，清场能力拉满；
   // 「时间之子」每个大回合开场结算一次——死了就满血复活（附带一个出手回合），
   // 活着就回满血。不攒复活储备，靠的是"每回合必然满血在场"。血薄但极难打死。
-  {id:"char_noah",name:"诺亚",charClass:"attack",maxHp:3100,atk:880,def:190,spd:115,element:"Light",normalAttackId:"atk_noah",ultimateId:"ult_noah",passiveIds:["pas_noah_time"],startingEnergy:50}
+  {id:"char_noah",name:"诺亚",charClass:"attack",maxHp:3100,atk:880,def:190,spd:115,element:"Light",normalAttackId:"atk_noah",ultimateId:"ult_noah",passiveIds:["pas_noah_time"],startingEnergy:50,portrait:"assets/img/char_noah.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -560,4 +560,10 @@ function statsAt(charId, lv){
 }
 function expToNext(lv){ return Math.round(80 * Math.pow(lv,1.35)); }
 function power(s){ return Math.round(s.maxHp/10 + s.atk*2 + s.def*2 + s.spd*1.5); }
+
+/* 根据角色 id 查立绘路径；没配就返回 null（UI 走 fallback 文字） */
+function portraitOf(charId){
+  const c = CHARS.find(x=>x.id===charId);
+  return c ? (c.portrait || null) : null;
+}
 

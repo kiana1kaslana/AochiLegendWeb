@@ -30,9 +30,16 @@ const RosterUI = {
       const lv = GROWTH_LEVELS[c.id]||50;
       const d = document.createElement("div");
       d.className = "roster-item"+(this.selected===c.id?" selected":"");
-      d.innerHTML = `<div><div class="ri-name">${c.name}</div>
+      // 列表头像：有 portrait 字段就显示立绘缩略图，没有就显示首字色块
+      const portraitTag = c.portrait
+        ? `<img class="ri-avatar" src="${c.portrait}" alt="${c.name}" loading="lazy" onerror="this.style.display='none'">`
+        : `<div class="ri-avatar ri-avatar-fallback" style="background:${ec}">${c.name[0]}</div>`;
+      d.innerHTML = `${portraitTag}
+        <div style="flex:1;min-width:0">
+          <div class="ri-name">${c.name}</div>
           <div class="ri-tags">${clsBadge(c.charClass)}${c.specialClass?specBadge(c.specialClass):""}<span style="background:${ec};color:#fff;padding:1px 7px;border-radius:8px;font-size:10px">${el}系</span></div>
-          <div class="ri-meta">${c.id}</div></div>
+          <div class="ri-meta">${c.id}</div>
+        </div>
         <div style="text-align:right"><div class="ri-meta">Lv.${lv}</div></div>`;
       d.onclick = ()=>{ this.selected = c.id; this.render(); };
       list.appendChild(d);
@@ -131,15 +138,22 @@ const RosterUI = {
         <span class="sg-legend-desc">${g.desc}</span></div>`;
     }).join("");
     det.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div>
-          <h2 style="margin:0">${c.name} <span style="background:${ec};color:#fff;padding:3px 10px;border-radius:12px;font-size:12px;vertical-align:middle">${el}系</span> <span style="vertical-align:middle">${clsBadge(c.charClass,true)}</span>${c.specialClass?` <span style="vertical-align:middle">${specBadge(c.specialClass,true)}</span>`:""}</h2>
-          <div style="color:var(--muted);font-size:11px">${c.id} · 初始气势 ${c.startingEnergy??50} · ${cm.tag}</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:24px;font-weight:bold;color:#e67e22">${pwr.toLocaleString()}</div>
-          <div style="font-size:10px;color:var(--muted)">战斗力 (Lv.${lv})</div>
-          <button class="btn small orange" style="margin-top:6px" onclick="RosterUI.editCurrent()">✎ 编辑此角色的属性与技能</button>
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:10px">
+        ${c.portrait
+          ? `<img class="rd-portrait" src="${c.portrait}" alt="${c.name}" onerror="this.style.display='none'">`
+          : `<div class="rd-portrait rd-portrait-fallback" style="background:${ec}">${c.name[0]}</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+            <div>
+              <h2 style="margin:0">${c.name} <span style="background:${ec};color:#fff;padding:3px 10px;border-radius:12px;font-size:12px;vertical-align:middle">${el}系</span> <span style="vertical-align:middle">${clsBadge(c.charClass,true)}</span>${c.specialClass?` <span style="vertical-align:middle">${specBadge(c.specialClass,true)}</span>`:""}</h2>
+              <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.id} · 初始气势 ${c.startingEnergy??50} · ${cm.tag}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:24px;font-weight:bold;color:#e67e22">${pwr.toLocaleString()}</div>
+              <div style="font-size:10px;color:var(--muted)">战斗力 (Lv.${lv})</div>
+              <button class="btn small orange" style="margin-top:6px" onclick="RosterUI.editCurrent()">✎ 编辑此角色的属性与技能</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="class-panel" style="border-left-color:${cm.c}">

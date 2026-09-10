@@ -51,13 +51,21 @@ h1{font-size:18px;padding:14px 20px 4px}
 .side-player{background:#3498db}
 .side-enemy{background:#e74c3c}
 .bgrid-vs{font-size:32px;font-weight:bold;color:#bdc3c7;letter-spacing:4px}
-.bgrid{display:grid;grid-template-columns:repeat(3,110px);grid-template-rows:repeat(3,96px);gap:8px}
+.bgrid{display:grid;grid-template-columns:repeat(3,128px);grid-template-rows:repeat(3,122px);gap:8px}
 .bgrid-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px}
 .bgrid-player{border:1px solid var(--border);border-radius:10px;padding:10px;background:#f7faff}
 .bgrid-enemy{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff7f7}
 .bgrid-vs{font-size:36px;font-weight:bold;color:#bdc3c7;letter-spacing:6px;padding:0 6px;align-self:center}
 .order-strip{font-size:11px;color:var(--muted);text-align:center;min-height:18px;padding:6px 10px;white-space:pre-wrap;word-break:break-all;line-height:1.5}
 .bcell{background:var(--card);border:2px solid var(--border);border-radius:10px;position:relative;display:flex;flex-direction:column;padding:4px 6px;transition:box-shadow .2s,border-color .2s}
+/* 战斗格子立绘：铺满格子做背景，名字/血条压在上面 */
+.bc-portrait{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:8px;z-index:0;pointer-events:none}
+.bc-portrait-fallback{display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+/* 有立绘的格子：底部垫一层白色渐变，保证名字/血条/数值可读 */
+.bcell:has(.bc-portrait)::after{content:"";position:absolute;inset:0;border-radius:8px;z-index:1;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(255,255,255,0) 26%,rgba(255,255,255,.42) 62%,rgba(255,255,255,.72) 86%,rgba(255,255,255,.85))}
+.bcell .top,.bcell .bars{position:relative;z-index:2}
+.bcell .top{text-shadow:0 0 3px #fff,0 1px 2px #fff}
 .bcell.enemy-cell{border-color:#e8c8c8}
 .bcell.player-cell{border-color:#c8d8e8}
 .bcell.dead{opacity:.28;filter:grayscale(1)}
@@ -124,8 +132,8 @@ h1{font-size:18px;padding:14px 20px 4px}
 .vs-label{text-align:center;font-size:13px;color:var(--muted);letter-spacing:6px;margin:2px 0}
 .battle-layout{display:flex;gap:16px;align-items:flex-start}
 .battle-left{flex:1;min-width:520px}
-.battle-right{width:380px}
-@media(max-width:980px){.battle-layout{flex-direction:column}.battle-right{width:100%}}
+.battle-right{width:360px}
+@media(max-width:1200px){.battle-layout{flex-direction:column}.battle-right{width:100%}}
 .round-badge{text-align:center;font-size:13px;font-weight:bold;color:var(--accent);padding:4px}
 
 /* ============ 技能 ============ */
@@ -179,13 +187,19 @@ h1{font-size:18px;padding:14px 20px 4px}
 /* ===== 角色仓库 ===== */
 .roster-layout{display:flex;gap:14px;align-items:flex-start}
 .roster-list{width:300px;max-height:680px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--card)}
-.roster-item{padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;cursor:pointer;background:#fff;display:flex;justify-content:space-between;align-items:center}
+.roster-item{padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;cursor:pointer;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:9px}
+/* 列表头像：有 portrait 用立绘缩略图，没有用首字色块 */
+.ri-avatar{width:46px;height:46px;border-radius:9px;object-fit:cover;object-position:top center;flex-shrink:0;border:1px solid var(--border);background:#fff}
+.ri-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:bold}
 .roster-item:hover{border-color:var(--accent)}
 .roster-item.selected{border:2px solid var(--accent);background:#f0f2fb}
 .roster-item .ri-name{font-weight:bold;font-size:13px}
 .roster-item .ri-meta{font-size:10px;color:var(--muted)}
 .roster-item .ri-tags{display:flex;gap:4px;align-items:center;margin:3px 0}
 .roster-detail{flex:1;min-width:520px}
+/* 详情大立绘：头部左侧 */
+.rd-portrait{width:170px;height:170px;border-radius:14px;object-fit:cover;object-position:top center;flex-shrink:0;border:2px solid var(--border);background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.rd-portrait-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:56px;font-weight:bold}
 .roster-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
 /* 【星神】装配面板 */
 .sg-wrap{background:#fbfcff;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px}
