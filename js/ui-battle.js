@@ -12,6 +12,61 @@ const UI = {
     if(name==="roster") RosterUI.render();
     if(name==="glossary") GlossaryUI.render();
     if(name==="designer") DesignerUI.render();
+  },
+  // ===== 通用「选一个」弹层 =====
+  // 调用方：await UI._pickOne({candidates: [{label, sub, icon}], title, sub, defaultIndex})
+  // candidates[0].dataId 是 Battle._spiritistPreferredBySide 等要存的标识
+  _pickResolver:null,
+  _pickDataId:null,
+  async _pickOne(opts){
+    return new Promise(resolve=>{
+      const modal = document.getElementById("pick-modal");
+      const grid  = document.getElementById("pick-grid");
+      const title = document.getElementById("pick-title");
+      const sub   = document.getElementById("pick-sub");
+      const okBtn = document.getElementById("pick-confirm");
+      title.textContent = opts.title || "请选择";
+      sub.textContent   = opts.sub   || "";
+      grid.innerHTML = "";
+      opts.candidates.forEach((c, i)=>{
+        const card = document.createElement("div");
+        card.className = "pick-item" + (i === (opts.defaultIndex||0) ? " selected" : "");
+        card.dataset.idx = i;
+        card.dataset.dataId = c.dataId;
+        card.innerHTML = `<img src="${c.icon||""}" onerror="this.style.background='#eee'"><div class="pname">${c.label}</div><div class="pclass">${c.sub||""}</div>`;
+        card.onclick = ()=>{
+          grid.querySelectorAll(".pick-item").forEach(el=>el.classList.remove("selected"));
+          card.classList.add("selected");
+          okBtn.disabled = false;
+        };
+        grid.appendChild(card);
+      });
+      okBtn.disabled = (opts.candidates.length <= 1);
+      this._pickResolver = resolve;
+      // 把 dataId 解析逻辑放在 confirm 里：优先上次选过/默认，否则用 defaultIndex
+      this._pickDefaultIndex = opts.defaultIndex || 0;
+      modal.classList.remove("hidden");
+    });
+  },
+  _pickConfirm(){
+    const modal = document.getElementById("pick-modal");
+    const sel = modal.querySelector(".pick-item.selected");
+    if(!sel) return;
+    const idx = +sel.dataset.idx;
+    const dataId = sel.dataset.dataId;
+    modal.classList.add("hidden");
+    if(this._pickResolver) this._pickResolver(dataId);
+    this._pickResolver = null;
+  },
+  _pickCancel(){
+    const modal = document.getElementById("pick-modal");
+    // 取消 = 走默认（第一个）
+    const sel = modal.querySelector(".pick-item.selected");
+    const dataId = sel ? sel.dataset.dataId : (this._pickDefaultIndex != null
+      ? document.querySelector(`#pick-grid .pick-item[data-idx="${this._pickDefaultIndex}"]`).dataset.dataId : null);
+    modal.classList.add("hidden");
+    if(this._pickResolver) this._pickResolver(dataId);
+    this._pickResolver = null;
   }
 };
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>UI.showPage(t.dataset.page));
@@ -83,13 +138,91 @@ const TeamUI = {
 /* ---------- 战斗 + 回放 ---------- */
 const Battle = {
   controller:null, result:null, orderSummary:null,
-  enter(){
+  /**
+   * 通灵师主角选择：每个阵营选一个 charId（同名重复放多个时仍按单位索引；
+   * 同名多个的"主角"按数据存储的 unitIdx 编号 `unitId#pos`）。
+   * 一旦确定：spiritPoints 只给主角累加，其他通灵师被"冻结"（不涨点、不触发变身）。
+   * 单候选时直接默认第 1 个，不弹框。
+   */
+  _spiritistPreferredBySide:{player:null, enemy:null},
+  _heroPreferredBySide:{player:null, enemy:null},
+  /** 把阵容里的"通灵师候选"映射成 {label, sub, icon, dataId} 数组。dataId 存 charId。 */
+  _candidatesSpiritists(grid, side){
+    const cands = [];
+    const seen = new Map();   // charId -> count（处理同名重复放）
+    for(let i=0;i<9;i++){
+      const u = grid.slots[i];
+      if(!u || !u.isAlive || !u.isSpiritist()) continue;
+      const k = u.data.id;
+      const n = (seen.get(k)||0) + 1;
+      seen.set(k, n);
+      cands.push({
+        dataId: u.data.id,
+        label: cands.length===0 && seen.get(k)===1 ? u.data.name
+             : (seen.get(k)>1 ? `${u.data.name} #${n}` : `${u.data.name}`),
+        sub: `通灵师 · ${(ELEMENTS[u.data.element]||{}).n||u.data.element}`,
+        icon: portraitOf(u.data.id) || ""
+      });
+    }
+    return cands;
+  },
+  _candidatesHeroes(grid){
+    const cands = [];
+    for(let i=0;i<9;i++){
+      const u = grid.slots[i];
+      if(!u || !u.isAlive || !u.heroSkill) continue;
+      cands.push({
+        dataId: u.data.id,
+        label: u.data.name,
+        sub: `英雄 · ${u.heroSkill.name}`,
+        icon: portraitOf(u.data.id) || ""
+      });
+    }
+    return cands;
+  },
+  async enter(){
     Replay.stop();
     const seedStr = document.getElementById("seed-input").value.trim();
     const seed = seedStr ? (Math.abs(hashCode(seedStr))||1) : (Math.floor(Math.random()*2**31)||1);
     const c = new BattleController(seed, true);
     c.initialize(TEAMS.player, TEAMS.enemy);
     this.controller = c;
+    // ===== 通灵师 / 英雄：多于 1 时让玩家选主角 =====
+    c._spiritistPreferredBySide = {player:null, enemy:null};
+    c._heroPreferredBySide = {player:null, enemy:null};
+    // 通灵师选择
+    for(const side of ["player","enemy"]){
+      const grid = side==="player" ? c.playerGrid : c.enemyGrid;
+      const cands = this._candidatesSpiritists(grid, side);
+      if(cands.length === 0) continue;
+      if(cands.length === 1){
+        c._spiritistPreferredBySide[side] = cands[0].dataId;
+        continue;
+      }
+      const picked = await UI._pickOne({
+        title: `${side==="player"?"我方":"敌方"}阵容有 ${cands.length} 位通灵师`,
+        sub: "同一阵容只能触发一位通灵师的通灵技，请指定主角。（通灵点只会累加在主角身上）",
+        candidates: cands
+      });
+      c._spiritistPreferredBySide[side] = picked;
+    }
+    // 英雄选择
+    for(const side of ["player","enemy"]){
+      const grid = side==="player" ? c.playerGrid : c.enemyGrid;
+      const cands = this._candidatesHeroes(grid);
+      if(cands.length === 0) continue;
+      if(cands.length === 1){
+        c._heroPreferredBySide[side] = cands[0].dataId;
+        continue;
+      }
+      const picked = await UI._pickOne({
+        title: `${side==="player"?"我方":"敌方"}阵容有 ${cands.length} 位英雄`,
+        sub: "同一阵容只能发动一位英雄的英雄技，请指定主角。",
+        candidates: cands
+      });
+      c._heroPreferredBySide[side] = picked;
+    }
+    // 跑战斗（气势判定、循环出手）
     this.result = c.run();
     // 本场出手序列摘要（首发由全员 SPD 总和决定）
     const playerSpd = c.playerGrid.aliveUnits().reduce((a,u)=>a+u.effSpd,0);
@@ -97,9 +230,12 @@ const Battle = {
     const firstSide = playerSpd >= enemySpd ? "我方" : "敌方";
     const sideText = `首发：${firstSide}（我SPD ${playerSpd} vs 敌 ${enemySpd}）`;
     this.orderSummary = `${sideText}　出手序按列推进：右列→中列→左列，每列从上到下；右阵镜像对称`;
+    // 把选角结果记一份到 Battle 上，方便 console / debug
+    this._spiritistPreferredBySide = c._spiritistPreferredBySide;
+    this._heroPreferredBySide = c._heroPreferredBySide;
     Replay.load(c.events, this.result);
   },
-  rerun(){ this.enter(); }
+  rerun(){ return this.enter(); }
 };
 function hashCode(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h<<5)-h+s.charCodeAt(i)|0; } return h; }
 

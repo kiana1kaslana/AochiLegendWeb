@@ -44,7 +44,7 @@
     <div style="margin-top:12px">
       <button class="btn gray" onclick="TeamUI.clear()">清空双方</button>
       <button class="btn gray" onclick="TeamUI.preset()">恢复默认阵容</button>
-      <button class="btn" onclick="UI.showPage('battle');Battle.enter()">进入战斗 ▶</button>
+      <button class="btn" onclick="UI.showPage('battle'); Battle.enter()">进入战斗 ▶</button>
     </div>
   </div>
 </div>
@@ -282,13 +282,26 @@
   </div>
 </div>
 
-<script src="js/data.js?v=18.3"></script>
-<script src="js/engine.js?v=18.3"></script>
-<script src="js/ui-battle.js?v=18.3"></script>
-<script src="js/ui-roster.js?v=18.3"></script>
-<script src="js/ui-glossary.js?v=18.3"></script>
-<script src="js/ui-designer.js?v=18.3"></script>
-<script src="js/storage.js?v=18.3"></script>
-<script src="js/main.js?v=18.3"></script>
+<!-- 通灵师 / 英雄 "多于 1 选一个" 通用弹层 -->
+<div id="pick-modal" class="pick-mask hidden" onclick="if(event.target===this) UI._pickCancel()">
+  <div class="pick-card">
+    <h2 id="pick-title">请选择</h2>
+    <div class="pick-sub" id="pick-sub">同一阵容里只能触发一位，多于 1 时需要手动指定</div>
+    <div class="pick-grid" id="pick-grid"></div>
+    <div class="pick-actions">
+      <button class="psecondary" onclick="UI._pickCancel()">取消</button>
+      <button class="pprimary" id="pick-confirm" onclick="UI._pickConfirm()" disabled>确认</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/data.js?v=18.4"></script>
+<script src="js/engine.js?v=18.4"></script>
+<script src="js/ui-battle.js?v=18.4"></script>
+<script src="js/ui-roster.js?v=18.4"></script>
+<script src="js/ui-glossary.js?v=18.4"></script>
+<script src="js/ui-designer.js?v=18.4"></script>
+<script src="js/storage.js?v=18.4"></script>
+<script src="js/main.js?v=18.4"></script>
 </body>
 </html>

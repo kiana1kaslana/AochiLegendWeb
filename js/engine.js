@@ -99,6 +99,13 @@ class BattleUnit{
     // 【气势免疫】标记（hero aura 一次性给的）：被置 true 后，所有【气势降低】命中该单位
     // 都直接落空。目前只有莉莉丝英雄技"大地赐福"会给草属性加这个标记。
     this.energyImmunity = false;
+    // 【通灵点】：通灵师专属。队友每次出手（按出手次数累积）都给自己加，
+    // 满 7 触发通灵变身（HP×2 / ATK×1.6 / 满血复活 / 1 连携）。
+    this.spiritPoints = 0;
+    // 标记通灵师是否已经通灵过一次（变身只能触发一次）
+    this.spirited = false;
+    // 通灵变身给的 ATK 加成倍率（1.0 = 不变；1.6 = 通灵后 +60% ATK）
+    this.atkMult = 1;
     // 标记某些被动已触发过（once:true 复活/同类一次性触发）
     this._triggeredOnce = new Set();
     const byId = id => skills.find(s=>s.id===id) || null;
@@ -146,7 +153,8 @@ class BattleUnit{
   _mod(type){ let s=0; for(const se of this.statusEffects) if(se.type===type) s+=se.value; return s; }
   _sum(type){ return this._mod(type); }
   // 【攻击星神】的百分比加成走 starAtkPct：和攻↑/攻↓同一层相加，但不占状态位
-  get effAtk(){ return this.stats.atk * (1 + this._mod("AtkUp") - this._mod("AtkDown") + (this.starAtkPct||0)); }
+  // atkMult 是通灵变身后的固定倍率（1.6），叠在最后一层，不受减益影响
+  get effAtk(){ return this.stats.atk * (1 + this._mod("AtkUp") - this._mod("AtkDown") + (this.starAtkPct||0)) * (this.atkMult||1); }
   get effDef(){ return this.stats.def * (1 + this._mod("DefUp") - this._mod("DefDown")); }
   get effSpd(){ return this.stats.spd * (1 + this._mod("SpdUp") - this._mod("SpdDown")); }
   get totalShield(){ return this._sum("Shield"); }
@@ -155,6 +163,8 @@ class BattleUnit{
   // 【控制】统一替代了旧版的眩晕/冰冻：被控时下一次攻击放空。
   // 若本该放大招，也一并放空，且不消耗气势（onTurnStart 里 canAct 判定在放技能之前）。
   get canAct(){ return this.isAlive && !this.hasStatus("Control"); }
+  /** 通灵师判定：specialClass 是 spirit 且没通灵过 */
+  isSpiritist(){ return this.isAlive && !this.spirited && this.data.specialClass==="spirit"; }
 
   /** 结算伤害。opts.true = 真伤（【毁灭伤害】）：无视减伤与护盾，直接扣血 */
   takeDamage(rawDamage, opts){
@@ -192,6 +202,14 @@ class BattleUnit{
     if(type==="Control"){
       const ex = this.statusEffects.find(s=>s.type==="Control");
       if(ex && ex.remainingTurns>0){ ex.remainingTurns += Math.max(1,duration); return; }
+    }
+    // 【禁疗】是永久标记型，重复获得不叠加（修尔平 a 命中后再吃大招也只算 1 条）。
+    // 标志本身没有 duration，所以也走不到下面 processTurnEnd 的递减逻辑。
+    if(type==="HealBlock"){
+      const ex = this.statusEffects.find(s=>s.type==="HealBlock");
+      if(ex) return;
+      this.statusEffects.push(new StatusEffect(type,value,duration,source,meta));
+      return;
     }
     // 【生息不止】是"有就行"的持续效果，不叠加——重复获得只刷新配置，否则阿瑞斯每开一次大
     // 就多挂一层，受击一次回几倍的命。
@@ -259,6 +277,10 @@ class BattleUnit{
 class BattleGrid{
   constructor(isPlayer){ this.slots = new Array(9).fill(null); this.isPlayerSide = isPlayer; }
   aliveUnits(){ return this.slots.filter(u=>u && u.isAlive); }
+  /** 场上所有活着的通灵师（specialClass==='spirit' 且未通灵过的单位） */
+  spiritists(){ return this.aliveUnits().filter(u => u.isSpiritist()); }
+  /** 场上已通灵过的通灵师（仍在场上、可以继续战斗，只是不会再触发通灵） */
+  spiritedOnes(){ return this.slots.filter(u => u && u.spirited); }
   get defeated(){ return this.slots.every(u=>!u || !u.isAlive); }
   columnFrontUnit(col){
     for(let row=0; row<3; row++){
@@ -700,18 +722,28 @@ class BattleController{
    * 而普通被动是抽概率、无论条件如何都在场。
    */
   _processHeroSkills(){
+    const pref = this._heroPreferredBySide || {player:null, enemy:null};
     for(const grid of [this.playerGrid, this.enemyGrid]){
-      for(const unit of grid.allUnits()){
-        if(!unit || !unit.isAlive || !unit.heroSkill) continue;
-        const skill = unit.heroSkill;
-        const cond = (skill.tags||[]).find(t=>t.type==="AuraCondition");
-        // 条件判定要先于技能发动输出日志，不然日志顺序读起来像「先发动又反悔」
-        if(cond && !this._checkAuraCondition(unit, cond)) continue;
-        this.addEvent("HeroSkill", unit, null, 0, `【英雄技】${unit.data.name} 发动「${skill.name}」`);
-        // 走 executeSkill 复用统一管线：这样【生命上限】【免疫】等词条不用在这里重写一遍
-        const tags = (skill.tags||[]).filter(t=>t.type!=="AuraCondition");
-        this.executeSkill(unit, {...skill, tags});
+      // 【多于 1 选一个】：如果本阵营有 ≥1 个英雄，但 Battle.enter 还没指定主角，
+      // 默认选第一个（让日常透明）；指定了就只跑那一个。
+      const heroes = grid.allUnits().filter(u=>u && u.isAlive && u.heroSkill);
+      if(heroes.length===0) continue;
+      const w = grid.isPlayerSide ? 'player' : 'enemy';
+      const keep = heroes.find(u=>u.data.id===pref[w]) || heroes[0];
+      if(keep.data.id !== (pref[w] || heroes[0].data.id)){
+        // 默认选了 heroes[0] 时写回 pref，避免其他子系统仍把它当作"未指定"
+        if(!pref[w]) pref[w] = heroes[0].data.id;
       }
+      const unit = keep;
+      if(!unit || !unit.isAlive || !unit.heroSkill) continue;
+      const skill = unit.heroSkill;
+      const cond = (skill.tags||[]).find(t=>t.type==="AuraCondition");
+      // 条件判定要先于技能发动输出日志，不然日志顺序读起来像「先发动又反悔」
+      if(cond && !this._checkAuraCondition(unit, cond)) continue;
+      this.addEvent("HeroSkill", unit, null, 0, `【英雄技】${unit.data.name} 发动「${skill.name}」`);
+      // 走 executeSkill 复用统一管线：这样【生命上限】【免疫】等词条不用在这里重写一遍
+      const tags = (skill.tags||[]).filter(t=>t.type!=="AuraCondition");
+      this.executeSkill(unit, {...skill, tags});
     }
   }
   /** 英雄技触发条件：己阵里指定属性的角色数量 ≥ value（只数存活单位）*/
@@ -777,8 +809,8 @@ class BattleController{
   executeSkill(caster, skill){
     this.addEvent("SkillUsed", caster, null, 0, `${caster.data.name} 使用了 ${skill.name}`);
     // dmgMult/targetType 现在支持多个（同一技能多个 DamageMultiplier tag 可选不同目标）
-    // 数组中每项：{mult, targetType}
-    const dmgHits = [];           // {mult, target}
+    // 数组中每项：{mult, target, repeat}（repeat 由【Repeat】词条填入，>1 表示同 target 多打几下）
+    const dmgHits = [];           // {mult, target, repeat}
     const trueDmgHits = [];       // {mult, target}：真实伤害，含 TrueDamage 与【毁灭伤害】
     let comboCount=1, critChance=0, critMult=1.5, piercePct=0,
         splashPct=0, followUpChance=0, lifestealPct=0, energyDrain=0, multiTargetCount=0;
@@ -796,6 +828,19 @@ class BattleController{
         // 【群攻】*n：把上面的伤害倍率随机打给敌方 n 个目标（只影响 DamageMultiplier 那组）
         case "MultiTarget": multiTargetCount=Math.max(1,Math.trunc(tag.value||1)); break;
         case "Combo": comboCount=Math.max(1,Math.trunc(tag.value||1)); break;
+        // 【Repeat】：让"上一个 dmgHit"对同一个 target 多打几下。语义是「连续释放 N 次」，
+        // 比如昆仑平 a：[{DamageMultiplier 200%}, {Repeat 2}] → 当前目标挨 2 下 200%。
+        // 一个技能通常只挂一个 Repeat tag；如果技能里有多个 dmgHit，Repeat 绑定到最后一个
+        // 上（符合玩家直觉：先写目标、再写重复）。
+        // 创界破军（昆仑被动）等动态 +1 不通过 Repeat 词条走，而是在 executeSkill 末尾
+        // 直接给 dmgHit.repeat 累加，避免和静态 Repeat 冲突。
+        case "Repeat": {
+          const n = Math.max(1, Math.trunc(tag.value||1));
+          const lastDmg = dmgHits[dmgHits.length-1];
+          if(lastDmg) lastDmg.repeat = n;
+          else dmgHits.push({mult:1, target:tag.target||"CurrentTarget", repeat:n});
+          break;
+        }
         case "Crit": critChance=tag.chance||0; critMult=tag.value>0?tag.value:1.5; break;
         case "Pierce": piercePct=tag.value; break;
         case "Splash": splashPct=tag.value; break;
@@ -848,6 +893,15 @@ class BattleController{
     }
     // 资源型词条处理（龙魂初始/补充/反击挂钩）
     this._execResourceTags(caster, skill, supportTags);
+    // 【创界破军】（昆仑专属）：己方存活 < 敌方存活时，给本次技能所有 dmgHit.repeat 各 +1。
+    // 放在 _execDamage 之前，让 _execDamage 看到 repeat 已经 +1 的 dmgHits。
+    if(caster.data.id==="char_kunlun" && this._isAllyOutnumbered(caster)){
+      for(const d of dmgHits){
+        d.repeat = (d.repeat||1) + 1;
+      }
+      this.addEvent("Info", caster, null, 0,
+        `  【创界破军】己方人数劣势，昆仑本次连击次数 +1`);
+    }
     if(dmgHits.length>0 || trueDmgHits.length>0){
       this._execDamage(caster, dmgHits, trueDmgHits, comboCount, critChance, critMult,
         piercePct, splashPct, followUpChance, onHitDebuffs, lifestealPct, energyDrain, multiTargetCount);
@@ -865,6 +919,10 @@ class BattleController{
           `  ${caster.data.name} 【大地赐福】释放大招后回满气势（${Math.round(before)} → ${Math.round(caster.currentEnergy)}）`);
       }
     }
+    // 通灵师系统：caster 出手后给本阵营所有通灵师加通灵点（点数 = 本回合攻击次数，含 Repeat）。
+    // 满 7 立刻触发变身。同一阵营只允许一位通灵师触发，多人满时把决定权抛给 UI（_pickSpiritist）。
+    // 单通灵师场景默认就自动选，多人弹框由 ui-battle.js 接管（见 _spiritCandidates）。
+    this._processSpiritPoints(caster, this._countSkillHits(skill, dmgHits));
   }
   _execDamage(caster, dmgHits, trueDmgHits, comboCount, critChance, critMult,
               piercePct, splashPct, followUpChance, onHitDebuffs, lifestealPct, energyDrain, multiTargetCount){
@@ -875,13 +933,13 @@ class BattleController{
     // 额外回合要按当时气势重新决定放大招还是平a，见 _processComboExtraTurns。
     body: {
       // 对每一组 (mult, target) 解析为多个目标；
-      // 对同一 target 同一轮只打一次（去重），最后一个 mult 生效
+      // 对同一 target 同一轮只打一次（去重），最后一个 mult + repeat 生效
       const seen = new Map();
       if(multiTargetCount>0){
         // 【群攻】*n：每击重新随机抽 n 个可攻击目标（隐身单位不在池子里）
         const picked = this._pickRandomTargets(defenderGrid.targetableUnits().filter(u=>u.isAlive), multiTargetCount);
         const mult = dmgHits.length ? dmgHits[dmgHits.length-1].mult : 1;
-        for(const t of picked) seen.set(t, {mult});
+        for(const t of picked) seen.set(t, {mult, repeat:1});
         if(picked.length){
           this.addEvent("Info", caster, null, 0, `  【群攻】随机命中 ${picked.length} 个目标：${picked.map(t=>t.data.name).join("、")}`);
         }
@@ -890,15 +948,15 @@ class BattleController{
           const tlist = this._resolveTargets(caster, d.target, attackerGrid, defenderGrid);
           for(const t of tlist){
             if(!t.isAlive) continue;
-            if(!seen.has(t)) seen.set(t, {mult:d.mult});
-            else seen.get(t).mult = d.mult; // 后定义的覆盖
+            if(!seen.has(t)) seen.set(t, {mult:d.mult, repeat:d.repeat||1});
+            else { seen.get(t).mult = d.mult; seen.get(t).repeat = d.repeat||1; } // 后定义的覆盖
           }
         }
       }
       if(seen.size===0 && trueDmgHits.length===0) break body;
       // ---------- ① 普通伤害（合并去重后的目标）----------
       // 【群攻】开并行动画组：这一组的事件在回放里同帧结算，敌方一起掉血；
-      // 非群攻（单体/连击）不加组，仍是一个目标一条一条播。
+      // 非群攻（单体/连击/Repeat）不加组，仍是一个目标一条一条播。
       const isGroupAttack = multiTargetCount>0;
       if(isGroupAttack) this._evGroup = ++this._groupSeq;
       for(const [target, info] of seen){
@@ -906,9 +964,16 @@ class BattleController{
         // （例如群攻前面几段先把它打死、后面的溅射仍指向它）——两种情况都直接跳过
         if(!caster.isAlive) break;
         if(!target.isAlive) continue;
-        this._processAttack(caster, target, info.mult, 0, critChance, critMult,
-          piercePct, onHitDebuffs, lifestealPct, energyDrain);
-        if(splashPct>0){
+        // 【Repeat】同一个 target 打 repeat 次（昆仑平 a / 大招的「连续释放 N 次」）。
+        // splash / 真伤只在最后一次打完后再结算，避免连击 3 下溅射 3 次把数据搞乱。
+        const repeat = info.repeat||1;
+        for(let r=0; r<repeat; r++){
+          if(!caster.isAlive) break;
+          if(!target.isAlive) break;
+          this._processAttack(caster, target, info.mult, 0, critChance, critMult,
+            piercePct, onHitDebuffs, lifestealPct, energyDrain);
+        }
+        if(splashPct>0 && target.isAlive){
           for(const adj of defenderGrid.adjacentUnits(target.gridPosition)){
             if(!adj.isAlive || adj.hasStatus("Stealth")) continue;
             const sd = this._processAttack(caster, adj, info.mult*splashPct, 0, 0, 1, 0, [], 0, 0);
@@ -1017,6 +1082,76 @@ class BattleController{
     const n = Math.max(1, Math.trunc(turns||1));
     this.addEvent("Chain", unit, null, n, `【连携】${unit.data.name} 立刻获得 ${n} 个出手回合`);
     this._processComboExtraTurns(unit, n);
+  }
+
+  /* ============ 通灵师系统 ============
+   *  设计要点：
+   *   1. 通灵点按"caster 单次出手的攻击次数"累加：Repeat N 的 dmgHit 给通灵师加 N 点
+   *      （昆仑平 a 默认打 2 次 → 加 2 点；大招打 3 次 → 加 3 点；创界破军 +1 时再加 1）。
+   *      这样昆仑自己也是给自己加（"自己单次出手内的攻击次数"），队友出手也按各自次数算。
+   *   2. 满 7 自动触发变身：HP 上限 ×2 / ATK ×1.6 / 满血复活（无视禁疗）/ 1 次连携。
+   *      同阵营只允许一位通灵师变身，多人满 7 时把"待选列表"抛给 UI（_spiritCandidates）。
+   *      单通灵师场景自动选（_pickSpiritist 只返回一人）。
+   *   3. 通灵点存在 BattleUnit.spiritPoints 字段（普通数字），不需要 StatusEffect。
+   */
+
+  /** 计数本次 executeSkill 实际"打"了几次（含 Repeat）。
+   *  dmgHits 已经被创界破军修正过 repeat，所以这里直接读 dmgHit.repeat。 */
+  _countSkillHits(skill, dmgHits){
+    let total = 0;
+    for(const d of dmgHits) total += (d.repeat||1);
+    // 没 dmgHits 的（纯支援技能）按 1 次算（一次出手就 1 次），避免漏算
+    if(total===0) total = 1;
+    return total;
+  }
+  /** 自己阵营存活数 < 敌方阵营存活数（创界破军触发条件） */
+  _isAllyOutnumbered(unit){
+    const ally = unit.isPlayerSide ? this.playerGrid.aliveUnits().length : this.enemyGrid.aliveUnits().length;
+    const foe  = unit.isPlayerSide ? this.enemyGrid.aliveUnits().length : this.playerGrid.aliveUnits().length;
+    return ally < foe;
+  }
+  /** caster 出招后给本阵营所有通灵师加 hitCount 通灵点。满 7 的进入 _spiritCandidates。
+   *  单候选自动变身；多候选写到一个待选池，由 ui-battle.js 弹框。
+   *  【多于 1 选一个】：Battle.enter 时已经定好 `_spiritistPreferredBySide[side]`，
+   *  这里只会给"主角通灵师"累加 spiritPoints。其他通灵师即使在场也当作"挂名"，
+   *  spiritPoints 永远是 0，避免「同时满 7」的并发问题。  */
+  _processSpiritPoints(caster, hitCount){
+    if(hitCount<=0) return;
+    const grid = caster.isPlayerSide ? this.playerGrid : this.enemyGrid;
+    const spiritists = grid.spiritists();
+    if(!spiritists.length) return;
+    const w = caster.isPlayerSide ? 'player' : 'enemy';
+    const pref = (this._spiritistPreferredBySide || {})[w];
+    // 主角通灵师：只有 pref 指向的那个（或默认第一个）才累计 +1
+    const main = pref ? spiritists.find(u=>u.data.id===pref) : spiritists[0];
+    if(!main) return;
+    this.addEvent("Info", caster, null, hitCount,
+      `  ${caster.data.name} 出手 ${hitCount} 次 → 主角通灵师 ${main.data.name} 获得 ${hitCount} 通灵点`);
+    main.spiritPoints = (main.spiritPoints||0) + hitCount;
+    this.addEvent("Info", caster, main, main.spiritPoints,
+      `  ${main.data.name} 通灵点 ${main.spiritPoints}/7`);
+    if(main.spiritPoints >= 7){
+      this._triggerSpiritTransform(main);
+    }
+  }
+  /** 执行通灵变身：HP×2 / ATK×1.6 / 满血（无视禁疗） / 1 连携 */
+  _triggerSpiritTransform(unit){
+    if(!unit || !unit.isAlive || unit.spirited) return;
+    unit.spirited = true;
+    // HP 上限 ×2：maxHp 是派生 getter（stats.maxHp × (1 + maxHpBonusPct)），
+    // 不能直接赋值。改走 applyMaxHpBonus(1.0) 在已有的 +0 基础上加 100%。
+    // helper 内部会自动把涨出来的那部分血补上。
+    const oldMax = unit.maxHp;
+    unit.applyMaxHpBonus(1.0);
+    // 满血复活（无视 HealBlock）：直接写 currentHp = maxHp，绕过 takeDamage / Heal 词条
+    unit.currentHp = unit.maxHp;
+    unit.isAlive = true;
+    // ATK ×1.6（atkMult 是战斗里 _processAttack 用的乘数）
+    unit.atkMult = 1.6;
+    // 给 1 次连携（立刻多一次出手回合）
+    this.addEvent("Info", unit, null, 0,
+      `  【通灵】${unit.data.name} 通灵变身！HP ×2（${oldMax} → ${unit.maxHp}），ATK ×1.6，立刻满血 + 1 连携`);
+    this._grantChain(unit, 1);
   }
   _processAttack(caster, target, dmgMult, trueDmg, critChance, critMult, piercePct, onHitDebuffs, lifestealPct, energyDrain){
     // 0. 尸体不吃伤害。目标可能在本技能的上一段（群攻/溅射/追击）就已经被打死了，
@@ -1235,8 +1370,12 @@ class BattleController{
     const seType = tagToStatus(tag);
     if(!seType) return;
     if((tag.chance??1)<1 && this.rng() > tag.chance) return;
-    target.addStatus(seType, tag.value||0, tag.duration||0, caster);
-    this.addEvent("StatusApplied", caster, target, 0, `  ${target.data.name} 受到 ${TAG_META[tag.type].n} 效果（${tag.duration||0}回合）`);
+    // duration 不兜底：undefined 表示「永久」（按用户 9/10 修尔禁疗设计）。
+    // _applyDebuff 之前用 tag.duration||0 把 undefined 兜成 0，导致「永久禁疗」
+    // 第一回合 processTurnEnd 就被 StatusExpired 干掉了。
+    target.addStatus(seType, tag.value||0, tag.duration, caster);
+    this.addEvent("StatusApplied", caster, target, 0,
+      `  ${target.data.name} 受到 ${TAG_META[tag.type].n} 效果（${tag.duration==null?"永久":tag.duration+"回合"}）`);
   }
   _applySelfBuff(caster, tag){
     const names = {AtkUp:"攻击增益",DefUp:"防御增益",SpdUp:"速度增益",Shield:"护盾",DamageReduction:"减伤"};
@@ -1253,8 +1392,9 @@ class BattleController{
     if(!targets.length) targets = [caster];
     for(const t of targets){
       if(!t.isAlive) continue;
-      t.addStatus(seType, tag.value||0, tag.duration||0, caster);
-      this.addEvent("StatusApplied", caster, t, 0, `  ${t.data.name} 获得 ${names[tag.type]||tag.type}（${tag.duration||0}回合）`);
+      t.addStatus(seType, tag.value||0, tag.duration, caster);
+      this.addEvent("StatusApplied", caster, t, 0,
+        `  ${t.data.name} 获得 ${names[tag.type]||tag.type}（${tag.duration==null?"永久":tag.duration+"回合"}）`);
     }
   }
   /** 资源型词条（龙魂）：在技能执行结束时一并结算 */
@@ -1344,19 +1484,26 @@ class BattleController{
           }
         }
         if(!rt) break;
-        // 【禁疗】拦截：被复活的目标身上挂着 HealBlock 时，
-        //   - 复活来自 useCharge（自己有储备）→ 扣 1 层储备抵消掉这次禁疗，移除该状态；
-        //   - 否则 → 复活整条作废，回落空。
-        // 这里"花一次复活抵消"的代价是消耗 reserve，不是把整条 HealBlock 清掉，
-        // 避免「禁疗挂 2 回合 → 一次复活就把状态洗掉」的副作用。
+        // 【禁疗】拦截：被复活的目标身上挂着 HealBlock 时（按用户 9/10 修复）：
+        //   - 有【复活储备】（tag.useCharge + caster.reviveCharges>0）→ 扣 1 层储备 + 移除 HealBlock + 复活照常
+        //   - 没复活储备 → 复活失败 + 移除 HealBlock（这样下一次死亡时队友的 Revive 可以正常生效，
+        //                  因为「下次死亡后被复活」是默认按「那次死亡时没有 HealBlock」走的）
+        // 两种分支都消耗这次禁疗本身，区别在于：
+        //   - 扣储备：复活成功，HealBlock 被「抵消」掉；
+        //   - 没储备：复活失败，HealBlock 被「用」掉（无意义了，目标已经死了）。
+        // 用 consumeCharge 标记避免下方 if(rt) 复活分支再扣一次储备。
+        let consumeCharge = tag.useCharge;
         if(rt.hasStatus("HealBlock")){
-          if(tag.useCharge && (caster.reviveCharges||0) > 0){
+          if(consumeCharge && (caster.reviveCharges||0) > 0){
             caster.reviveCharges -= 1;
+            consumeCharge = false;  // 已被抵消分支扣过
             const idx = rt.statusEffects.findIndex(s=>s.type==="HealBlock");
             if(idx>=0) rt.statusEffects.splice(idx,1);
             this.addEvent("Info", caster, rt, 0,
               `  ${rt.data.name} 处于【禁疗】，花 1 次【复活储备】抵消（剩余 ${caster.reviveCharges}）`);
           } else {
+            const idx = rt.statusEffects.findIndex(s=>s.type==="HealBlock");
+            if(idx>=0) rt.statusEffects.splice(idx,1);
             this.addEvent("Info", caster, rt, 0, `  ${rt.data.name} 处于【禁疗】，复活无效`);
             break;
           }
@@ -1371,7 +1518,7 @@ class BattleController{
           if(tag.once){
             if(tagId) caster._triggeredOnce.add(tagId);
           }
-          if(tag.useCharge){
+          if(consumeCharge){
             caster.reviveCharges = Math.max(0, (caster.reviveCharges||0) - 1);
           }
           this.addEvent("Revive", caster, rt, rt.currentHp, `  ${rt.data.name} 被复活！恢复 ${rt.currentHp} HP`);

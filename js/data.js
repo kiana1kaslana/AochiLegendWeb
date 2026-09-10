@@ -167,15 +167,15 @@ let SKILLS = [
   // ============ 修尔（暗 · 速度：禁疗 + 大招暴击 + 抽气势）============
   ,
   {id:"atk_schurr",name:"是非之咬",triggerType:"NormalAttack",tags:[
-    // 平a：单体 200%，并给当前目标挂【禁疗】1 回合（下一次回血/复活无效）
+    // 平a：单体 200%，并给当前目标挂【禁疗】（永久，直到目标复活时抵消或下次死亡后解除）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
-    {type:"HealBlock",value:1,duration:1,target:"CurrentTarget"}
+    {type:"HealBlock",target:"CurrentTarget"}
   ]},
   {id:"ult_schurr",name:"因果裁决",triggerType:"Ultimate",energyCost:100,tags:[
-    // 大招：单体 600%，暴击率额外 +40%，再挂【禁疗】2 回合
+    // 大招：单体 600%，暴击率额外 +40%，再挂永久【禁疗】
     {type:"DamageMultiplier",value:6.0,target:"CurrentTarget"},
     {type:"CritBoost",value:0.4,target:"Self"},
-    {type:"HealBlock",value:2,duration:2,target:"CurrentTarget"}
+    {type:"HealBlock",target:"CurrentTarget"}
   ]},
   {id:"pas_schurr_pursuit",name:"是非之魔",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 开场：敌方同横排所有单位气势 -20
@@ -206,6 +206,25 @@ let SKILLS = [
     {type:"MaxHpUp",value:0.2,target:"AllyAll"},
     {type:"EnergyImmunity",value:1,target:"AllyGrass"}
   ]}
+
+  // ============ 昆仑（草 · 攻击 / 通灵师：连攻 + 通灵点 + 通灵变身）============
+  // 昆仑是"通灵师"职业（specialClass:"spirit"），靠队友出手积通灵点，满 7 触发变身：
+  //   HP ×2 / ATK ×1.6 / 满血复活（无视禁疗）/ 1 连携。
+  // 平 a：200% × 2（连攻 2 次）；大招：300% × 3（连攻 3 次）。
+  // 被动【创界破军】：己方存活 < 敌方存活时，连攻次数 +1（引擎 executeSkill 开头动态改 dmgHit.repeat）。
+  ,
+  {id:"atk_kunlun",name:"裂空三叉",triggerType:"NormalAttack",tags:[
+    {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
+    {type:"Repeat",value:2}
+  ]},
+  {id:"ult_kunlun",name:"通灵·破天击",triggerType:"Ultimate",energyCost:100,tags:[
+    {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
+    {type:"Repeat",value:3}
+  ]},
+  {id:"pas_kunlun_pursuit",name:"创界破军",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[]}
+  // 创界破军的实际效果不在 passives 触发器里跑，而是在 executeSkill 里检测"己方存活 < 敌方存活"
+  // 动态给 dmgHit.repeat 累加。这样写是因为"动态 repeat 修正"和"被动触发器"语义不重合：
+  // 被动触发器是"每回合一次"的钩子，而 repeat 累加是"每次出手时按战况决定"。
 ];
 
 // 旧数据迁移：眩晕 / 冰冻 统一为【控制】（通用词条合并后的兼容处理）
@@ -299,6 +318,10 @@ let CHARS = [
   // 莉莉丝：草系平衡 + 英雄。大招后自带嘲讽 + 死亡复活阵亡角色；
   // 英雄技"大地赐福"：草属性≥2时全队血 +20%、草属性免疫气势降低、草属性大招后回满气势。
   {id:"char_lilith",name:"莉莉丝",charClass:"balance",specialClass:"hero",maxHp:4200,atk:560,def:360,spd:100,element:"Grass",normalAttackId:"atk_lilith",ultimateId:"ult_lilith",heroSkillId:"hero_lilith_gift",passiveIds:[],startingEnergy:50,portrait:"assets/img/char_lilith.webp"}
+  ,
+  // 昆仑：草属性 / 攻击型 / 通灵师。数值定位"半肉输出"：比修尔肉、比修尔高攻，
+  // 通灵点满 7 之后 HP×2 / ATK×1.6，整场变成主 T + 主输出。
+  {id:"char_kunlun",name:"昆仑",charClass:"attack",specialClass:"spirit",maxHp:3800,atk:780,def:160,spd:110,element:"Grass",normalAttackId:"atk_kunlun",ultimateId:"ult_kunlun",passiveIds:["pas_kunlun_pursuit"],startingEnergy:50,portrait:"assets/img/char_kunlun.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -391,6 +414,8 @@ const TAG_META = {
     desc:"【连击】是**再给一个出手回合**，不是同一个技能多打几下。每个额外回合按当时的气势重新决定放什么：气势够就再放一次大招，气势不够就自动执行一次平a并回气势 +50。额外回合不再派生额外回合。表现上逐次播放、伤害一个一个跳（这正是它和【群攻】同时结算的区别）。和【连携】的关系：都由同一套「额外出手回合」逻辑执行，区别在谁发起——连击是施法者自己放完接着打，连携是别人点名你、你立刻动。"},
   Chain:         {n:"连携",      s:"携",   c:"#e74c3c", cat:"dmg", v:"立刻获得的出手回合数", tgt:1,
     desc:"【连携】是**别的效果发给你的一个立刻出手回合**。和【连击】共用同一套额外回合逻辑（按当时气势决定再放大招还是平a，平a 回 50 气势），差别只在于发起方：连击写在技能自己的词条里、施法者放完本体接着打；连携由外部点名触发——阿瑞斯受击满 3 次把同排攻击最高的队友连携出去、诺亚每次被复活给自己补一个回合。连携打出的那个回合里不会再触发连锁携（有递归守卫），否则能互相点到自己转死。"},
+  Repeat:        {n:"连攻",      s:"连攻", c:"#e74c3c", cat:"dmg", v:"重复释放次数（绑定到上一个 dmgHit 上）", tgt:1,
+    desc:"【连攻】让上一个 dmgHit 对同一个 target 连续释放 N 次。语义是「单体连打」，不是【群攻】的一次打 N 个、也不是【连击】的额外出手回合——同 target 挨 N 下 200% = 等效 200% × N。昆仑的平 a / 大招都走这条路：平 a 200% × 2 = 一次出手合计 400%；大招 300% × 3 = 一次出手合计 900%。溅射 / 真伤只在最后一次打完后再算一次，不会被连攻带成 N 倍。创界破军（昆仑被动）动态 +1 不通过这个词条，直接在引擎里把 dmgHit.repeat 累加。"},
   Crit:          {n:"暴击",      s:"暴",   c:"#e74c3c", cat:"dmg", v:"暴击倍率（1.5=150%）", tgt:0,
     desc:"所有角色自带 20% 基础暴击率、150% 基础暴击伤害。这个词条在其上追加暴击概率（看 chance），并可把暴击倍率换成 value。chance=1 表示必定暴击。"},
   TrueDamage:    {n:"真实伤害",  s:"真",   c:"#e74c3c", cat:"dmg", v:"自身攻击力倍率（8.0=800%）", tgt:1,
@@ -468,8 +493,8 @@ const TAG_META = {
     desc:"直接扣气势。负数（-20）就当扣 20 点用；与【气势吸取】的区别——吸取走「目标给到施法者」（用于龙魂反击），降低就是单纯地把目标气势扣下去，不转移。"},
   EnergyImmunity:{n:"气势免疫",  s:"势免", c:"#9b59b6", cat:"fn", v:"1=开启免疫", tgt:1,
     desc:"给目标打上「免疫【气势降低】」标记。本身不挡吸取、不挡加气势，只挡「让气势变低」的效果（EnergyDown）。莉莉丝的【大地赐福】会让满足条件的所有草属性角色带上这个标记。"},
-  HealBlock:     {n:"禁疗",      s:"禁疗", c:"#e67e22", cat:"st", v:"持续回合", tgt:1,
-    desc:"禁止目标在接下来若干回合内被回血或复活——【治疗】/【比例治疗】直接落空，【复活】也无效（带 useCharge 的复活会先扣一层【复活储备】当抵消，然后再判定 HealBlock）。敌方核心治疗/复活位吃一口就废一回合。"},
+  HealBlock:     {n:"禁疗",      s:"禁疗", c:"#e67e22", cat:"st", v:"永久标记", tgt:1,
+    desc:"永久挂上的【禁疗】标记。【治疗】/【比例治疗】只要身上有这个标记就一律落空；【复活】触发时按下面两条结算：①被复活者/施法者身上有【复活储备】→ 扣 1 层储备抵消本次禁疗，标记随之移除（复活照常生效）；②没有复活储备 → 复活失败，标记也移除（之后再次死亡时队友的复活技能可正常生效）。修尔的平 a / 大招都挂这个标记，没法靠时间磨掉，只能用复活储备或一次失败复活把它消耗掉。"},
   DodgeBoost:    {n:"闪避加成",  s:"闪↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,
     desc:"在基础闪避之上追加闪避概率，用于堆到高闪避的生存流派。"},
   CritBoost:     {n:"暴击加成",  s:"暴↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,
