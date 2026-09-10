@@ -21,6 +21,25 @@ function mergeObject(base, incoming){
   if(!incoming || typeof incoming!=="object") return;
   for(const k of Object.keys(incoming)) base[k] = incoming[k];
 }
+/**
+ * 缺失字段回填：mergeById 是「存档条目整条替换代码条目」，代码里**新加**的字段
+ * （比如 char_noya 第二十三轮新增的 spiritGain / infiniteEnergy）在老存档里不存在，
+ * 合并后会被整条旧数据抹掉——诺雅的「气势无上限」就是这样失效的。
+ * 这里按 id 把「代码默认里有、存档条目里没有的顶层键」补回去。
+ * 只补 undefined 的键：用户在设计器里主动改过的值（存在即可）不动。
+ */
+function backfillMissing(base, codeDefaults){
+  let rescued = 0;
+  for(const item of base){
+    if(!item || item.id==null) continue;
+    const d = codeDefaults.get(item.id);
+    if(!d) continue;
+    for(const k of Object.keys(d)){
+      if(item[k] === undefined){ item[k] = d[k]; rescued++; }
+    }
+  }
+  return rescued;
+}
 
 const DataIO = {
   KEY: "aochi_save_v1",
@@ -62,9 +81,20 @@ const DataIO = {
     // 补救成功则顺手 save 一次，让老存档自我刷新，下次加载不再触发同样问题。
     const _defaultPortraits = new Map();
     for(const c of CHARS) if(c.portrait) _defaultPortraits.set(c.id, c.portrait);
+    // 缺失字段回填用的代码默认快照（要在 mergeById 之前取，之后 CHARS/SKILLS 就被存档覆盖了）
+    const _codeChars = new Map(CHARS.map(c=>[c.id, c]));
+    const _codeSkills = new Map(SKILLS.map(s=>[s.id, s]));
     // CHARS / SKILLS / TEAMS 都是 const 绑定，只能就地改内容，不能重新赋值
     if(Array.isArray(bag.chars)) mergeById(CHARS, bag.chars);
     if(Array.isArray(bag.skills)) mergeById(SKILLS, bag.skills);
+    // 老存档没有的新字段回填（诺雅 spiritGain / infiniteEnergy 等），补上后顺手存档自我刷新
+    {
+      const n1 = backfillMissing(CHARS, _codeChars);
+      const n2 = backfillMissing(SKILLS, _codeSkills);
+      if(n1 + n2 > 0){
+        try{ this.save(); }catch(_){ /* headless 无 localStorage 时忽略 */ }
+      }
+    }
     // 补救：把合并后缺失的 portrait 字段按代码默认补回
     let _portraitRescued = 0;
     for(const c of CHARS){

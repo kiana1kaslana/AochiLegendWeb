@@ -984,12 +984,23 @@ class BattleController{
       // 对同一 target 同一轮只打一次（去重），最后一个 mult + repeat 生效
       const seen = new Map();
       if(multiTargetCount>0){
+        // 【群攻】也得吃【嘲讽】：嘲讽者在场时，这一击只打嘲讽者一个（按单体倍率），
+        // 不能因为走"随机抽 n 个"的独立路径就绕开 _resolveTargets 里的拦截。
+        // 群攻×3 = 三击都砸在嘲讽者身上（每击按单体倍率，不叠群伤倍率）。
+        const tn = defenderGrid.taunter();
+        if(tn && tn.isAlive){
+          const mult = dmgHits.length ? dmgHits[dmgHits.length-1].mult : 1;
+          seen.set(tn, {mult, repeat:1});
+          this.addEvent("Info", caster, null, 0,
+            `  【群攻】被【嘲讽】吸引，火力集中在 ${tn.data.name}（按单体倍率）`);
+        } else {
         // 【群攻】*n：每击重新随机抽 n 个可攻击目标（隐身单位不在池子里）
         const picked = this._pickRandomTargets(defenderGrid.targetableUnits().filter(u=>u.isAlive), multiTargetCount);
         const mult = dmgHits.length ? dmgHits[dmgHits.length-1].mult : 1;
         for(const t of picked) seen.set(t, {mult, repeat:1});
         if(picked.length){
           this.addEvent("Info", caster, null, 0, `  【群攻】随机命中 ${picked.length} 个目标：${picked.map(t=>t.data.name).join("、")}`);
+        }
         }
       } else {
         for(const d of dmgHits){
