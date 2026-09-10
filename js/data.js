@@ -211,20 +211,44 @@ let SKILLS = [
   // 昆仑是"通灵师"职业（specialClass:"spirit"），靠队友出手积通灵点，满 7 触发变身：
   //   HP ×2 / ATK ×1.6 / 满血复活（无视禁疗）/ 1 连携。
   // 平 a：200% × 2（连攻 2 次）；大招：300% × 3（连攻 3 次）。
-  // 被动【创界破军】：己方存活 < 敌方存活时，连攻次数 +1（引擎 executeSkill 开头动态改 dmgHit.repeat）。
+  // 被动【创界破军】：己方存活 < 敌方存活时，连攻次数 +1（由 RepeatBoost 词条承载）。
   ,
   {id:"atk_kunlun",name:"裂空三叉",triggerType:"NormalAttack",tags:[
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
-    {type:"Repeat",value:2}
+    {type:"Repeat",value:2},
+    {type:"RepeatBoost",value:1,condition:"Outnumbered",source:"创界破军"}
   ]},
   {id:"ult_kunlun",name:"通灵·破天击",triggerType:"Ultimate",energyCost:100,tags:[
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
-    {type:"Repeat",value:3}
+    {type:"Repeat",value:3},
+    {type:"RepeatBoost",value:1,condition:"Outnumbered",source:"创界破军"}
   ]},
   {id:"pas_kunlun_pursuit",name:"创界破军",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[]}
-  // 创界破军的实际效果不在 passives 触发器里跑，而是在 executeSkill 里检测"己方存活 < 敌方存活"
-  // 动态给 dmgHit.repeat 累加。这样写是因为"动态 repeat 修正"和"被动触发器"语义不重合：
-  // 被动触发器是"每回合一次"的钩子，而 repeat 累加是"每次出手时按战况决定"。
+  // 创界破军的实际效果由 RepeatBoost 词条承载（在 executeSkill 解析阶段按 condition
+  // 给 dmgHit.repeat 累加）。把 condition 写在词条里是为了 UI 能直接渲染出
+  // 「条件连攻 +1（己方人数劣势）」这个 chip，让玩家在技能描述里看到触发条件。
+
+  // ============ 诺雅（光 · 平衡 / 通灵师：群攻 + 通灵点 +8 / 星月同辉免气势消耗）============
+  // 诺雅是"通灵师"职业（specialClass:"spirit"），靠光/暗属性队友每次出手 +2 通灵点，
+  // 其他元素 +1。与昆仑的区别：
+  //   ① 通灵阈值 8（昆仑 7），但加速更快——队伍里多放光暗角色就比昆仑快满。
+  //   ② 平 a / 大招都是【群攻】，不是连攻——更吃阵型、走"清扫流"。
+  //   ③ 被动【星月同辉】完免气势降低，包括大招消耗——本质是"无限大招"。
+  ,
+  {id:"atk_noya",name:"星芒·散射",triggerType:"NormalAttack",tags:[
+    {type:"DamageMultiplier",value:2.0},
+    {type:"MultiTarget",value:2}
+  ]},
+  {id:"ult_noya",name:"月华·广域",triggerType:"Ultimate",energyCost:100,tags:[
+    {type:"DamageMultiplier",value:3.0},
+    {type:"MultiTarget",value:3}
+  ]},
+  {id:"pas_noya_stellar",name:"星月同辉",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    {type:"EnergyDrainImmunity"}
+  ]}
+  // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
+  // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
+  // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
 ];
 
 // 旧数据迁移：眩晕 / 冰冻 统一为【控制】（通用词条合并后的兼容处理）
@@ -321,7 +345,12 @@ let CHARS = [
   ,
   // 昆仑：草属性 / 攻击型 / 通灵师。数值定位"半肉输出"：比修尔肉、比修尔高攻，
   // 通灵点满 7 之后 HP×2 / ATK×1.6，整场变成主 T + 主输出。
-  {id:"char_kunlun",name:"昆仑",charClass:"attack",specialClass:"spirit",maxHp:3800,atk:780,def:160,spd:110,element:"Grass",normalAttackId:"atk_kunlun",ultimateId:"ult_kunlun",passiveIds:["pas_kunlun_pursuit"],startingEnergy:50,portrait:"assets/img/char_kunlun.webp"}
+  {id:"char_kunlun",name:"昆仑",charClass:"attack",specialClass:"spirit",maxHp:3800,atk:780,def:160,spd:110,element:"Grass",normalAttackId:"atk_kunlun",ultimateId:"ult_kunlun",passiveIds:["pas_kunlun_pursuit"],startingEnergy:50,portrait:"assets/img/char_kunlun.webp"},
+  // 诺雅：光属性 / 平衡型 / 通灵师。数值定位"脆皮爆发"：高攻低防，靠群攻叠加通灵点
+  // （光暗属性队友每次出手 +2 = 比昆仑的 +1 更快满），满 8 触发变身。被动【星月同辉】
+  // 完全免疫气势降低——放完大招气势不归零，等于"无限大招"，配合变身后的高 ATK 1.6×
+  // 形成持续的群体爆发。
+  {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,portrait:"assets/img/char_noya.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -416,6 +445,8 @@ const TAG_META = {
     desc:"【连携】是**别的效果发给你的一个立刻出手回合**。和【连击】共用同一套额外回合逻辑（按当时气势决定再放大招还是平a，平a 回 50 气势），差别只在于发起方：连击写在技能自己的词条里、施法者放完本体接着打；连携由外部点名触发——阿瑞斯受击满 3 次把同排攻击最高的队友连携出去、诺亚每次被复活给自己补一个回合。连携打出的那个回合里不会再触发连锁携（有递归守卫），否则能互相点到自己转死。"},
   Repeat:        {n:"连攻",      s:"连攻", c:"#e74c3c", cat:"dmg", v:"重复释放次数（绑定到上一个 dmgHit 上）", tgt:1,
     desc:"【连攻】让上一个 dmgHit 对同一个 target 连续释放 N 次。语义是「单体连打」，不是【群攻】的一次打 N 个、也不是【连击】的额外出手回合——同 target 挨 N 下 200% = 等效 200% × N。昆仑的平 a / 大招都走这条路：平 a 200% × 2 = 一次出手合计 400%；大招 300% × 3 = 一次出手合计 900%。溅射 / 真伤只在最后一次打完后再算一次，不会被连攻带成 N 倍。创界破军（昆仑被动）动态 +1 不通过这个词条，直接在引擎里把 dmgHit.repeat 累加。"},
+  RepeatBoost:   {n:"条件连攻",  s:"+连攻",c:"#e74c3c", cat:"dmg", v:"条件触发时累加的连攻次数", tgt:0,
+    desc:"【条件连攻】给当前技能的所有 dmgHit.repeat 累加 value。条件由 condition 字段决定（Outnumbered = 己方存活 < 敌方存活）。昆仑的创界破军就是这条：己方人数劣势时，平 a / 大招的连攻次数再多 1。和【连攻】的区别是条件触发，不是每次都加。"},
   Crit:          {n:"暴击",      s:"暴",   c:"#e74c3c", cat:"dmg", v:"暴击倍率（1.5=150%）", tgt:0,
     desc:"所有角色自带 20% 基础暴击率、150% 基础暴击伤害。这个词条在其上追加暴击概率（看 chance），并可把暴击倍率换成 value。chance=1 表示必定暴击。"},
   TrueDamage:    {n:"真实伤害",  s:"真",   c:"#e74c3c", cat:"dmg", v:"自身攻击力倍率（8.0=800%）", tgt:1,
@@ -493,6 +524,8 @@ const TAG_META = {
     desc:"直接扣气势。负数（-20）就当扣 20 点用；与【气势吸取】的区别——吸取走「目标给到施法者」（用于龙魂反击），降低就是单纯地把目标气势扣下去，不转移。"},
   EnergyImmunity:{n:"气势免疫",  s:"势免", c:"#9b59b6", cat:"fn", v:"1=开启免疫", tgt:1,
     desc:"给目标打上「免疫【气势降低】」标记。本身不挡吸取、不挡加气势，只挡「让气势变低」的效果（EnergyDown）。莉莉丝的【大地赐福】会让满足条件的所有草属性角色带上这个标记。"},
+  EnergyDrainImmunity:{n:"气势免疫·极",s:"势✦", c:"#9b59b6", cat:"fn", v:"1=全免气势降低（含大招消耗）", tgt:0,
+    desc:"完全免疫气势降低——比【气势免疫】更强，**含大招释放后的清零**。诺雅的【星月同辉】让自己永远不消耗气势，本质是「无限大招」。基线气势增长仍然正常走，只是不会下降。"},
   HealBlock:     {n:"禁疗",      s:"禁疗", c:"#e67e22", cat:"st", v:"永久标记", tgt:1,
     desc:"永久挂上的【禁疗】标记。【治疗】/【比例治疗】只要身上有这个标记就一律落空；【复活】触发时按下面两条结算：①被复活者/施法者身上有【复活储备】→ 扣 1 层储备抵消本次禁疗，标记随之移除（复活照常生效）；②没有复活储备 → 复活失败，标记也移除（之后再次死亡时队友的复活技能可正常生效）。修尔的平 a / 大招都挂这个标记，没法靠时间磨掉，只能用复活储备或一次失败复活把它消耗掉。"},
   DodgeBoost:    {n:"闪避加成",  s:"闪↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,

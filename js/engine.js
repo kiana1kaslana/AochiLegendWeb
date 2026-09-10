@@ -99,13 +99,19 @@ class BattleUnit{
     // 【气势免疫】标记（hero aura 一次性给的）：被置 true 后，所有【气势降低】命中该单位
     // 都直接落空。目前只有莉莉丝英雄技"大地赐福"会给草属性加这个标记。
     this.energyImmunity = false;
-    // 【通灵点】：通灵师专属。队友每次出手（按出手次数累积）都给自己加，
-    // 满 7 触发通灵变身（HP×2 / ATK×1.6 / 满血复活 / 1 连携）。
-    this.spiritPoints = 0;
-    // 标记通灵师是否已经通灵过一次（变身只能触发一次）
-    this.spirited = false;
-    // 通灵变身给的 ATK 加成倍率（1.0 = 不变；1.6 = 通灵后 +60% ATK）
-    this.atkMult = 1;
+    // 【气势免疫·极】（星月同辉）：含大招清零的完免。比 energyImmunity 更强，
+    // 挡的是"一切让气势变低"的路径——主循环大招清零、连击额外回合清零、EnergyDown、
+    // 气势吸取（drained 直接不进自己的 currentEnergy 减法）等。
+    // 注：基础气势增长（普攻命中 / 受击）仍然正常走。
+    this.energyDrainImmunity = false;
+  // 【通灵点】：通灵师专属。队友每次出手（按出手次数累积）都给自己加，
+  // 满阈值触发通灵变身（HP×2 / ATK×1.6 / 满血复活 / 1 连携）。默认阈值 7，
+  // 个别通灵师可在 charData.spiritThreshold 覆盖（诺雅 8）。
+  this.spiritPoints = 0;
+  // 标记通灵师是否已经通灵过一次（变身只能触发一次）
+  this.spirited = false;
+  // 通灵变身给的 ATK 加成倍率（1.0 = 不变；1.6 = 通灵后 +60% ATK）
+  this.atkMult = 1;
     // 标记某些被动已触发过（once:true 复活/同类一次性触发）
     this._triggeredOnce = new Set();
     const byId = id => skills.find(s=>s.id===id) || null;
@@ -116,6 +122,20 @@ class BattleUnit{
     this.passives = (charData.passiveIds||[]).map(byId).filter(Boolean);
     if(!this.normalAttack)
       this.normalAttack = {id:"auto_attack",name:"普通攻击",triggerType:"NormalAttack",tags:[{type:"DamageMultiplier",value:1.0}]};
+  }
+  /** 通灵点触发阈值。默认 7，可在 charData.spiritThreshold 字段覆盖（诺雅 8）。 */
+  get spiritThreshold(){ return this.data.spiritThreshold || 7; }
+  /**
+   * 一次出手给该通灵师加多少点通灵点（按 caster 元素差异化）。
+   * 默认 +1/攻击次数；诺雅：caster 元素为光或暗时 +2/攻击次数，其他元素仍 +1。
+   * @returns 加成倍率（1 或 2），最终 spiritPoints += hitCount × 倍率
+   */
+  getSpiritPointGain(caster){
+    if(this.data.id === "char_noya"){
+      const el = caster.data.element;
+      if(el === "Light" || el === "Dark") return 2;
+    }
+    return 1;
   }
   /** 战力估算（用于「敌方战力最低」选敌） */
   powerScore(){ return Math.trunc(this.effAtk*2 + this.currentHp + this.effDef + this.effSpd*30); }
@@ -472,6 +492,12 @@ class BattleController{
         immunityCharges:u.immunityCharges||0,
         // 【复活储备】层数：>0 时显示绿色「生N」徽章，一眼看出还能死几次
         reviveCharges:u.reviveCharges||0,
+        // 【通灵点】+ 是否已通灵：阵营上方进度条用。
+        spiritPoints:u.spiritPoints||0,
+        spirited:!!u.spirited,
+        spiritThreshold:u.spiritThreshold,
+        // 星月同辉（能量免疫·极）标记
+        energyDrainImmunity:!!u.energyDrainImmunity,
         stealth:u.hasStatus("Stealth"), controlled:u.hasStatus("Control"),
         statuses:u.statusEffects.map(s=>({type:s.type,value:s.value,turns:s.remainingTurns})),
         ultCost: u.ultimate ? (u.ultimate.costEnergy ?? u.ultimate.energyCost ?? ULT_ENERGY_COST) : null};
@@ -611,10 +637,12 @@ class BattleController{
         // 气势越高，大招越强：伤害倍率 = 当前气势 / 100（175 气势 = 1.75 倍）
         const energyAtCast = unit.currentEnergy;
         const mult = energyMultiplier(energyAtCast);
-        unit.currentEnergy = 0;
+        // 星月同辉（能量免疫·极）下，大招不清零气势
+        if(!unit.energyDrainImmunity) unit.currentEnergy = 0;
         unit._castEnergyMult = mult;
+        const drainText = unit.energyDrainImmunity ? "（气势免消耗）" : "（气势清零）";
         this.addEvent("UltimateUsed", unit, null, Math.trunc(energyAtCast),
-          `【大招】${unit.data.name} 释放 ${skill.name}！气势 ${Math.round(energyAtCast)} → 伤害 ×${mult.toFixed(2)}（气势清零）`);
+          `【大招】${unit.data.name} 释放 ${skill.name}！气势 ${Math.round(energyAtCast)} → 伤害 ×${mult.toFixed(2)}${drainText}`);
       }
       // 5. 执行
       this.executeSkill(unit, skill);
@@ -841,6 +869,20 @@ class BattleController{
           else dmgHits.push({mult:1, target:tag.target||"CurrentTarget", repeat:n});
           break;
         }
+        case "RepeatBoost": {
+          // 条件性 repeat 累加。condition="Outnumbered" = 己方存活 < 敌方存活。
+          // 命中时给当前所有 dmgHit.repeat 累加 value；否则这条不生效。
+          const cond = tag.condition;
+          let ok = false;
+          if(cond==="Outnumbered") ok = this._isAllyOutnumbered(caster);
+          if(ok){
+            for(const d of dmgHits) d.repeat = (d.repeat||1) + (tag.value||1);
+            const src = tag.source || "条件连攻";
+            this.addEvent("Info", caster, null, 0,
+              `  【${src}】条件命中（${cond}），本次连击次数 +${tag.value||1}`);
+          }
+          break;
+        }
         case "Crit": critChance=tag.chance||0; critMult=tag.value>0?tag.value:1.5; break;
         case "Pierce": piercePct=tag.value; break;
         case "Splash": splashPct=tag.value; break;
@@ -883,6 +925,9 @@ class BattleController{
         // 【气势免疫】标记（布尔型）：hero aura 给的「整场免疫气势降低」buff，
         // 单独 case 处理，给单位打上 energyImmunity 标志供 EnergyDown 跳过
         case "EnergyImmunity":
+        // 【气势免疫·极】（星月同辉）：完免气势降低，连大招清零也跳过。
+        // 进入 _execSupport 时直接给 caster 打 energyDrainImmunity=true。
+        case "EnergyDrainImmunity":
           supportTags.push(tag); break;
         // 资源型词条（龙魂）：不参与普通管线，在 _execResourceTags 中处理
         case "DragonSoulInit":
@@ -893,15 +938,6 @@ class BattleController{
     }
     // 资源型词条处理（龙魂初始/补充/反击挂钩）
     this._execResourceTags(caster, skill, supportTags);
-    // 【创界破军】（昆仑专属）：己方存活 < 敌方存活时，给本次技能所有 dmgHit.repeat 各 +1。
-    // 放在 _execDamage 之前，让 _execDamage 看到 repeat 已经 +1 的 dmgHits。
-    if(caster.data.id==="char_kunlun" && this._isAllyOutnumbered(caster)){
-      for(const d of dmgHits){
-        d.repeat = (d.repeat||1) + 1;
-      }
-      this.addEvent("Info", caster, null, 0,
-        `  【创界破军】己方人数劣势，昆仑本次连击次数 +1`);
-    }
     if(dmgHits.length>0 || trueDmgHits.length>0){
       this._execDamage(caster, dmgHits, trueDmgHits, comboCount, critChance, critMult,
         piercePct, splashPct, followUpChance, onHitDebuffs, lifestealPct, energyDrain, multiTargetCount);
@@ -1045,9 +1081,11 @@ class BattleController{
           const energyAtCast = caster.currentEnergy;
           const mult = energyMultiplier(energyAtCast);
           caster._castEnergyMult = mult;
-          caster.currentEnergy = 0;
+          // 星月同辉下不清零
+          if(!caster.energyDrainImmunity) caster.currentEnergy = 0;
+          const drainText = caster.energyDrainImmunity ? "（气势免消耗）" : "（气势清零）";
           this.addEvent("UltimateUsed", caster, null, Math.trunc(energyAtCast),
-            `【连击】${caster.data.name} 额外出手，再放一次大招 ${caster.ultimate.name}！气势 ${Math.round(energyAtCast)} → 伤害 ×${mult.toFixed(2)}（气势清零）`);
+            `【连击】${caster.data.name} 额外出手，再放一次大招 ${caster.ultimate.name}！气势 ${Math.round(energyAtCast)} → 伤害 ×${mult.toFixed(2)}${drainText}`);
           this.executeSkill(caster, caster.ultimate);
           caster._castEnergyMult = 1;
         } else {
@@ -1122,15 +1160,16 @@ class BattleController{
     if(!spiritists.length) return;
     const w = caster.isPlayerSide ? 'player' : 'enemy';
     const pref = (this._spiritistPreferredBySide || {})[w];
-    // 主角通灵师：只有 pref 指向的那个（或默认第一个）才累计 +1
+    // 主角通灵师：只有 pref 指向的那个（或默认第一个）才累计
     const main = pref ? spiritists.find(u=>u.data.id===pref) : spiritists[0];
     if(!main) return;
-    this.addEvent("Info", caster, null, hitCount,
-      `  ${caster.data.name} 出手 ${hitCount} 次 → 主角通灵师 ${main.data.name} 获得 ${hitCount} 通灵点`);
-    main.spiritPoints = (main.spiritPoints||0) + hitCount;
+    // 诺雅：光/暗 caster +2，其他元素 +1；其他通灵师默认 +1
+    const ratio = main.getSpiritPointGain(caster);
+    const add = hitCount * ratio;
+    main.spiritPoints = (main.spiritPoints||0) + add;
     this.addEvent("Info", caster, main, main.spiritPoints,
-      `  ${main.data.name} 通灵点 ${main.spiritPoints}/7`);
-    if(main.spiritPoints >= 7){
+      `  ${caster.data.name} 出手 ${hitCount} 次 → ${main.data.name} 获得 ${add} 通灵点（${main.spiritPoints}/${main.spiritThreshold}）`);
+    if(main.spiritPoints >= main.spiritThreshold){
       this._triggerSpiritTransform(main);
     }
   }
@@ -1254,9 +1293,14 @@ class BattleController{
     }
     // 10. 吸怒
     if(energyDrain>0 && target.isAlive){
-      const drained = Math.min(Math.trunc(energyDrain), target.currentEnergy);
-      target.currentEnergy -= drained; caster.currentEnergy += drained;
-      if(drained>0) this.addEvent("EnergyDrain", caster, target, drained, `  ${caster.data.name} 吸取 ${target.data.name} ${drained} 点怒气`);
+      // 星月同辉（能量免疫·极）目标不被吸取
+      if(target.energyDrainImmunity){
+        this.addEvent("Info", caster, target, 0, `  ${target.data.name} 【气势免疫·极】免疫吸取！`);
+      } else {
+        const drained = Math.min(Math.trunc(energyDrain), target.currentEnergy);
+        target.currentEnergy -= drained; caster.currentEnergy += drained;
+        if(drained>0) this.addEvent("EnergyDrain", caster, target, drained, `  ${caster.data.name} 吸取 ${target.data.name} ${drained} 点怒气`);
+      }
     }
     // 11. 反击（被动）
     if(target.isAlive){
@@ -1636,12 +1680,16 @@ class BattleController{
         break;
       }
       // 【气势降低】：直接扣目标气势。可负 value 表示"扣 N 点"（修尔"是非之魔"开场给敌方同横排 -20）。
-      // 被【气势免疫】（草属性 + 大地赐福激活）的目标整条跳过。
+      // 被【气势免疫】（草属性 + 大地赐福激活）整条跳过；被【气势免疫·极】（星月同辉）也跳过。
       case "EnergyDown": {
         for(const t of this._resolveTargets(caster, tag.target||"CurrentTarget", atkGrid, defGrid)){
           if(!t.isAlive) continue;
           if(t.energyImmunity){
             this.addEvent("Info", caster, t, 0, `  ${t.data.name} 免疫【气势降低】`);
+            continue;
+          }
+          if(t.energyDrainImmunity){
+            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 【气势免疫·极】免疫【气势降低】`);
             continue;
           }
           const before = t.currentEnergy;
@@ -1662,6 +1710,14 @@ class BattleController{
           t.energyImmunity = true;
           this.addEvent("Info", caster, t, 0, `  ${t.data.name} 获得【气势免疫】（免疫气势降低）`);
         }
+        break;
+      }
+      // 【气势免疫·极】（星月同辉）：完免气势降低，含大招清零。
+      // 给 caster 打 energyDrainImmunity=true，主循环所有"currentEnergy 清零/扣减"路径都先查这个 flag。
+      case "EnergyDrainImmunity": {
+        caster.energyDrainImmunity = true;
+        this.addEvent("Info", caster, caster, 0,
+          `  ${caster.data.name} 获得【气势免疫·极】（完免气势降低，含大招消耗）`);
         break;
       }
       default: break;

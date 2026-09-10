@@ -444,6 +444,29 @@ const Replay = {
   },
   renderFromSnap(snap){
     // snap: {player:[9], enemy:[9]}
+    // 阵营上方通灵进度条：每个阵营挑 spiritPoints 最大的那个通灵师（按 pref 选主角）。
+    // 没通灵师或者通灵师已通灵则整条隐藏。
+    for(const side of ["player","enemy"]){
+      const bar = document.getElementById("spirit-bar-"+side);
+      const fill = document.getElementById("spirit-bar-fill-"+side);
+      const text = document.getElementById("spirit-bar-text-"+side);
+      const arr = snap[side].filter(u=>u && u.specialClass==="spirit");
+      if(arr.length===0){
+        bar.classList.add("spirit-bar-empty");
+        continue;
+      }
+      // 优先主角：spirited 也算（用来显示"已通灵"金色）
+      const main = arr.find(u=>u.spirited) || arr[0];
+      const max = main.spiritThreshold || 7;
+      const cur = Math.min(main.spiritPoints, max);
+      const pct = main.spirited ? 100 : Math.round(cur/max*100);
+      bar.classList.remove("spirit-bar-empty");
+      bar.classList.toggle("spirited", !!main.spirited);
+      fill.style.width = pct + "%";
+      text.textContent = main.spirited
+        ? `${main.name} 通灵变身`
+        : `${main.name} 通灵点 ${cur}/${max}`;
+    }
     for(const side of ["enemy","player"]){
       const gridEl = document.getElementById("bgrid-"+side);
       // 清掉所有 cell 内容重建
