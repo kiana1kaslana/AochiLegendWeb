@@ -56,9 +56,26 @@ const DataIO = {
     try{ bag = JSON.parse(raw); }
     catch(e){ try{ console.warn("存档损坏，按默认数据启动：", e); }catch(_){} return false; }
     if(!bag || typeof bag!=="object") return false;
+    // 立绘字段补救：mergeById 是**整条按 id 替换**，老存档（第十八轮之前存下的）里
+    // 的角色对象不带 portrait 字段 —— 合并后会覆盖掉新代码的 portrait，UI 层只看到色块。
+    // 先扫一份当前 CHARS 的 portrait 作为「代码默认」，merge 之后再按 id 补回。
+    // 补救成功则顺手 save 一次，让老存档自我刷新，下次加载不再触发同样问题。
+    const _defaultPortraits = new Map();
+    for(const c of CHARS) if(c.portrait) _defaultPortraits.set(c.id, c.portrait);
     // CHARS / SKILLS / TEAMS 都是 const 绑定，只能就地改内容，不能重新赋值
     if(Array.isArray(bag.chars)) mergeById(CHARS, bag.chars);
     if(Array.isArray(bag.skills)) mergeById(SKILLS, bag.skills);
+    // 补救：把合并后缺失的 portrait 字段按代码默认补回
+    let _portraitRescued = 0;
+    for(const c of CHARS){
+      if(!c.portrait && _defaultPortraits.has(c.id)){
+        c.portrait = _defaultPortraits.get(c.id);
+        _portraitRescued++;
+      }
+    }
+    if(_portraitRescued > 0){
+      try{ this.save(); }catch(_){ /* headless 无 localStorage 时忽略 */ }
+    }
     // 存档里的角色是整条替换的，老档没有 starGods 字段 —— 这里补一次，
     // 不然「刷新一下默认星神就没了」。见 ensureStarGods 的注释。
     ensureStarGods();
