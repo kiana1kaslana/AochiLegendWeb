@@ -184,7 +184,7 @@ class BattleUnit{
   // 若本该放大招，也一并放空，且不消耗气势（onTurnStart 里 canAct 判定在放技能之前）。
   get canAct(){ return this.isAlive && !this.hasStatus("Control"); }
   /** 通灵师判定：specialClass 是 spirit 且没通灵过 */
-  isSpiritist(){ return this.isAlive && !this.spirited && this.data.specialClass==="spirit"; }
+  isSpiritist(){ return this.isAlive && this.data.specialClass==="spirit"; }
 
   /** 结算伤害。opts.true = 真伤（【毁灭伤害】）：无视减伤与护盾，直接扣血 */
   takeDamage(rawDamage, opts){
@@ -1173,23 +1173,37 @@ class BattleController{
       this._triggerSpiritTransform(main);
     }
   }
-  /** 执行通灵变身：HP×2 / ATK×1.6 / 满血（无视禁疗） / 1 连携 */
+  /** 执行通灵变身。无限触发：每次满阈值都算一次"通灵"。
+   *  首次通灵：变身（HP×2 / ATK×1.6）+ 满血 + 1 连携；
+   *  之后每次通灵：只再给 满血（无视禁疗）+ 1 连携（HP/ATK 增益保持不叠）。
+   *  spiritPoints 扣掉 threshold，溢出部分保留继续累计。 */
   _triggerSpiritTransform(unit){
-    if(!unit || !unit.isAlive || unit.spirited) return;
-    unit.spirited = true;
-    // HP 上限 ×2：maxHp 是派生 getter（stats.maxHp × (1 + maxHpBonusPct)），
-    // 不能直接赋值。改走 applyMaxHpBonus(1.0) 在已有的 +0 基础上加 100%。
-    // helper 内部会自动把涨出来的那部分血补上。
-    const oldMax = unit.maxHp;
-    unit.applyMaxHpBonus(1.0);
-    // 满血复活（无视 HealBlock）：直接写 currentHp = maxHp，绕过 takeDamage / Heal 词条
-    unit.currentHp = unit.maxHp;
-    unit.isAlive = true;
-    // ATK ×1.6（atkMult 是战斗里 _processAttack 用的乘数）
-    unit.atkMult = 1.6;
-    // 给 1 次连携（立刻多一次出手回合）
-    this.addEvent("Info", unit, null, 0,
-      `  【通灵】${unit.data.name} 通灵变身！HP ×2（${oldMax} → ${unit.maxHp}），ATK ×1.6，立刻满血 + 1 连携`);
+    if(!unit || !unit.isAlive) return;
+    // 扣阈值（保留溢出），先扣再变身，方便下面判断是不是首次
+    const th = unit.spiritThreshold;
+    unit.spiritPoints = Math.max(0, (unit.spiritPoints||0) - th);
+    if(!unit.spirited){
+      unit.spirited = true;
+      // HP 上限 ×2：maxHp 是派生 getter（stats.maxHp × (1 + maxHpBonusPct)），
+      // 不能直接赋值。改走 applyMaxHpBonus(1.0) 在已有的 +0 基础上加 100%。
+      // helper 内部会自动把涨出来的那部分血补上。
+      const oldMax = unit.maxHp;
+      unit.applyMaxHpBonus(1.0);
+      // ATK ×1.6（atkMult 是战斗里 _processAttack 用的乘数）
+      unit.atkMult = 1.6;
+      // 满血复活（无视 HealBlock）：直接写 currentHp = maxHp，绕过 takeDamage / Heal 词条
+      unit.currentHp = unit.maxHp;
+      unit.isAlive = true;
+      this.addEvent("Info", unit, null, 0,
+        `  【通灵】${unit.data.name} 通灵变身！HP ×2（${oldMax} → ${unit.maxHp}），ATK ×1.6，立刻满血 + 1 连携`);
+    } else {
+      // 已变身：再来一次通灵只给 满血 + 1 连携（变身增益不叠）
+      unit.currentHp = unit.maxHp;
+      unit.isAlive = true;
+      this.addEvent("Info", unit, null, 0,
+        `  【通灵】${unit.data.name} 再次通灵！立刻满血 + 1 连携`);
+    }
+    // 每次通灵都给 1 次连携（立刻多一次出手回合）
     this._grantChain(unit, 1);
   }
   _processAttack(caster, target, dmgMult, trueDmg, critChance, critMult, piercePct, onHitDebuffs, lifestealPct, energyDrain){
