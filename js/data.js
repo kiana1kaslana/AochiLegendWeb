@@ -346,11 +346,11 @@ let CHARS = [
   // 昆仑：草属性 / 攻击型 / 通灵师。数值定位"半肉输出"：比修尔肉、比修尔高攻，
   // 通灵点满 7 之后 HP×2 / ATK×1.6，整场变成主 T + 主输出。
   {id:"char_kunlun",name:"昆仑",charClass:"attack",specialClass:"spirit",maxHp:3800,atk:780,def:160,spd:110,element:"Grass",normalAttackId:"atk_kunlun",ultimateId:"ult_kunlun",passiveIds:["pas_kunlun_pursuit"],startingEnergy:50,portrait:"assets/img/char_kunlun.webp"},
-  // 诺雅：光属性 / 平衡型 / 通灵师。数值定位"脆皮爆发"：高攻低防，靠群攻叠加通灵点
-  // （光暗属性队友每次出手 +2 = 比昆仑的 +1 更快满），满 8 触发变身。被动【星月同辉】
-  // 完全免疫气势降低——放完大招气势不归零，等于"无限大招"，配合变身后的高 ATK 1.6×
-  // 形成持续的群体爆发。
-  {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,portrait:"assets/img/char_noya.webp"}
+  // 诺雅：光属性 / 平衡型 / 通灵师。数值定位"脆皮爆发"：高攻低防，满 8 触发变身。
+  // 通灵规则：只有光/暗属性的队友**主动攻击出手**才给她 +2 通灵点（固定值，不乘攻击次数），
+  // 其他属性出手不给点。被动【星月同辉】完全免疫气势降低——放完大招气势不归零；
+  // 且气势**无上限**（infiniteEnergy），开大还会额外 +50 气势，越打越多、大招越放越疼。
+  {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,spiritGain:"lightdark",infiniteEnergy:true,portrait:"assets/img/char_noya.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -527,7 +527,7 @@ const TAG_META = {
   EnergyDrainImmunity:{n:"气势免疫·极",s:"势✦", c:"#9b59b6", cat:"fn", v:"1=全免气势降低（含大招消耗）", tgt:0,
     desc:"完全免疫气势降低——比【气势免疫】更强，**含大招释放后的清零**。诺雅的【星月同辉】让自己永远不消耗气势，本质是「无限大招」。基线气势增长仍然正常走，只是不会下降。"},
   HealBlock:     {n:"禁疗",      s:"禁疗", c:"#e67e22", cat:"st", v:"永久标记", tgt:1,
-    desc:"永久挂上的【禁疗】标记。【治疗】/【比例治疗】只要身上有这个标记就一律落空；【复活】触发时按下面两条结算：①被复活者/施法者身上有【复活储备】→ 扣 1 层储备抵消本次禁疗，标记随之移除（复活照常生效）；②没有复活储备 → 复活失败，标记也移除（之后再次死亡时队友的复活技能可正常生效）。修尔的平 a / 大招都挂这个标记，没法靠时间磨掉，只能用复活储备或一次失败复活把它消耗掉。"},
+    desc:"永久挂上的【禁疗】标记。【治疗】/【比例治疗】只要身上有这个标记就一律落空；【复活】触发时按下面两条结算：①被复活者/施法者身上有【复活储备】→ 扣 1 层储备抵消本次禁疗，标记随之移除（复活照常生效）；②没有复活储备 → 复活失败，**标记保留**（禁疗是永久的，下次死亡被队友复活时依然无效，直到有人花【复活储备】抵消为止）。修尔的平 a / 大招都挂这个标记，没法靠时间磨掉，唯一的解法就是【复活储备】。"},
   DodgeBoost:    {n:"闪避加成",  s:"闪↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,
     desc:"在基础闪避之上追加闪避概率，用于堆到高闪避的生存流派。"},
   CritBoost:     {n:"暴击加成",  s:"暴↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,

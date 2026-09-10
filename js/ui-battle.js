@@ -481,7 +481,9 @@ const Replay = {
         if(!u){ cell.innerHTML = ""; cell.style.visibility="hidden"; continue; }
         cell.style.visibility = "visible";
         const el = ELEMENTS[u.element] || ELEMENTS.None;
-        const maxEn = u.maxEnergy || MAX_ENERGY;
+        // 诺雅（infiniteEnergy）气势无上限：条子按 100 门槛封顶显示，数字区显示 ∞
+        const infEn = !isFinite(u.maxEnergy);
+        const maxEn = infEn ? 100 : (u.maxEnergy || MAX_ENERGY);
         const hpPct = Math.max(0, Math.round(u.hp/u.maxHp*100));
         const enPct = Math.min(100, Math.round(u.energy/maxEn*100));
         const chips = u.statuses.map(s=>{
@@ -519,7 +521,7 @@ const Replay = {
           <div class="bars">
             <div class="hpbar"><div class="fill" style="width:${hpPct}%"></div></div>
             <div class="enbar"><div class="fill" style="width:${enPct}%"></div></div>
-            <div class="nums"><span>${u.hp}/${u.maxHp}</span><span>气势 ${Math.round(u.energy)}/${maxEn}</span></div>
+            <div class="nums"><span>${u.hp}/${u.maxHp}</span><span>气势 ${Math.round(u.energy)}${infEn?"（∞）":"/"+maxEn}</span></div>
             ${multTag?`<div class="mult-row">${multTag}</div>`:""}
           </div>`;
         cell.classList.toggle("dead", !u.alive);

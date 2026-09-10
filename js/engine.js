@@ -126,16 +126,18 @@ class BattleUnit{
   /** 通灵点触发阈值。默认 7，可在 charData.spiritThreshold 字段覆盖（诺雅 8）。 */
   get spiritThreshold(){ return this.data.spiritThreshold || 7; }
   /**
-   * 一次出手给该通灵师加多少点通灵点（按 caster 元素差异化）。
-   * 默认 +1/攻击次数；诺雅：caster 元素为光或暗时 +2/攻击次数，其他元素仍 +1。
-   * @returns 加成倍率（1 或 2），最终 spiritPoints += hitCount × 倍率
+   * 一次出手给该通灵师加多少点通灵点（含差异化规则）。
+   * 默认规则（昆仑等）：按本次出手的攻击次数累加，连击数是几就加几；
+   * spiritGain:"lightdark"（诺雅）：只有 caster 是光/暗属性且**主动攻击出手**才 +2（固定值，
+   *   不乘攻击次数），其他属性出手不给点。
+   * @returns 本次出手的通灵点增量（可为 0）
    */
-  getSpiritPointGain(caster){
-    if(this.data.id === "char_noya"){
+  getSpiritPointGain(caster, hitCount){
+    if(this.data.spiritGain === "lightdark"){
       const el = caster.data.element;
-      if(el === "Light" || el === "Dark") return 2;
+      return (el === "Light" || el === "Dark") ? 2 : 0;
     }
-    return 1;
+    return hitCount;
   }
   /** 战力估算（用于「敌方战力最低」选敌） */
   powerScore(){ return Math.trunc(this.effAtk*2 + this.currentHp + this.effDef + this.effSpd*30); }
@@ -155,8 +157,8 @@ class BattleUnit{
     this.currentHp = Math.min(this.currentHp, this.maxHp);
     return delta;
   }
-  /** 气势上限：基础 200 + 装备加成 */
-  get maxEnergy(){ return MAX_ENERGY + this.gearMaxEnergy; }
+  /** 气势上限：基础 200 + 装备加成。诺雅（infiniteEnergy）无上限 */
+  get maxEnergy(){ return this.data.infiniteEnergy ? Infinity : (MAX_ENERGY + this.gearMaxEnergy); }
   /**
    * 放大招需要的气势门槛。默认统一 100（100 只是门槛，不是上限）。
    * skills 里写了 costEnergy 才覆盖，energyCost 是老字段名，一起兼容。
@@ -448,6 +450,10 @@ function statusShort(s){
   return s.type;
 }
 
+// 被动触发 / 英雄技触发的 executeSkill 统一带这个 opts：
+// 这类「非主动出手」不给通灵师加通灵点（用户 9/10 定稿：通灵判定只看主动出手）
+const PASSIVE_EXEC = {spiritEligible:false};
+
 class BattleController{
   constructor(seed, recordEvents){
     this.rng = mulberry32(seed);
@@ -606,7 +612,7 @@ class BattleController{
     return seq;
   }
   _processTurn(unit){
-    this.addEvent("TurnStart", unit, null, 0, `${unit.data.name} 的回合 (HP:${unit.currentHp}/${unit.maxHp} 气势:${Math.round(unit.currentEnergy)}/${unit.maxEnergy})`, {actingPos: unit.gridPosition, actingSide: unit.isPlayerSide?'player':'enemy'});
+    this.addEvent("TurnStart", unit, null, 0, `${unit.data.name} 的回合 (HP:${unit.currentHp}/${unit.maxHp} 气势:${Math.round(unit.currentEnergy)}/${isFinite(unit.maxEnergy)?unit.maxEnergy:"∞"})`, {actingPos: unit.gridPosition, actingSide: unit.isPlayerSide?'player':'enemy'});
     try{
       // 1. DoT 结算（按【毁灭伤害】度量）
       unit.processTurnStart();
@@ -621,7 +627,7 @@ class BattleController{
         if(p.triggerType!=="OnTurnStart") continue;
         if(this.rng() > (p.passiveTriggerChance??1)) continue;
         this.addEvent("Passive", unit, null, 0, `${unit.data.name} 触发被动：${p.name}`);
-        this.executeSkill(unit, p);
+        this.executeSkill(unit, p, PASSIVE_EXEC);
       }
       // 3. 能否行动（被【控制】时直接放空，气势不动）
       if(!unit.canAct){
@@ -639,8 +645,12 @@ class BattleController{
         const mult = energyMultiplier(energyAtCast);
         // 星月同辉（能量免疫·极）下，大招不清零气势
         if(!unit.energyDrainImmunity) unit.currentEnergy = 0;
+        // 诺雅（infiniteEnergy）：开大额外 +50 气势（气势无上限，越放越多）
+        if(unit.data.infiniteEnergy) gainEnergy(unit, 50);
         unit._castEnergyMult = mult;
-        const drainText = unit.energyDrainImmunity ? "（气势免消耗）" : "（气势清零）";
+        const drainText = unit.energyDrainImmunity
+          ? (unit.data.infiniteEnergy ? `（气势免消耗 +50 → ${Math.round(unit.currentEnergy)}）` : "（气势免消耗）")
+          : "（气势清零）";
         this.addEvent("UltimateUsed", unit, null, Math.trunc(energyAtCast),
           `【大招】${unit.data.name} 释放 ${skill.name}！气势 ${Math.round(energyAtCast)} → 伤害 ×${mult.toFixed(2)}${drainText}`);
       }
@@ -679,7 +689,7 @@ class BattleController{
         if((p.tags||[]).some(t=>t.type==="DragonSoulAllyRetaliate") && (unit.dragonSouls||0)<=0) continue;
         this.addEvent("Passive", unit, null, 0, `${unit.data.name} 触发被动：${p.name}`);
         // 复用 executeSkill，确保龙魂反击注入（同 DragonSoulAllyRetaliate tag）
-        this.executeSkill(unit, p);
+        this.executeSkill(unit, p, PASSIVE_EXEC);
       }
     }
   }
@@ -709,7 +719,7 @@ class BattleController{
           if(!unit.isAlive && !selfRevive) continue;
           if(this.rng() > (p.passiveTriggerChance??1)) continue;
           this.addEvent("Passive", unit, null, 0, `${unit.data.name} 触发回合开始被动：${p.name}`);
-          this.executeSkill(unit, p);
+          this.executeSkill(unit, p, PASSIVE_EXEC);
         }
       }
     }
@@ -771,7 +781,7 @@ class BattleController{
       this.addEvent("HeroSkill", unit, null, 0, `【英雄技】${unit.data.name} 发动「${skill.name}」`);
       // 走 executeSkill 复用统一管线：这样【生命上限】【免疫】等词条不用在这里重写一遍
       const tags = (skill.tags||[]).filter(t=>t.type!=="AuraCondition");
-      this.executeSkill(unit, {...skill, tags});
+      this.executeSkill(unit, {...skill, tags}, PASSIVE_EXEC);
     }
   }
   /** 英雄技触发条件：己阵里指定属性的角色数量 ≥ value（只数存活单位）*/
@@ -806,7 +816,7 @@ class BattleController{
           unit._deathFired.add(p.id);
         }
         this.addEvent("Passive", unit, null, 0, `${unit.data.name} 死亡触发：${p.name}`);
-        this.executeSkill(unit, p);
+        this.executeSkill(unit, p, PASSIVE_EXEC);
       }
     }
   }
@@ -820,7 +830,7 @@ class BattleController{
           if(p.triggerType !== "OnBattleStart") continue;
           if(this.rng() > (p.passiveTriggerChance??1)) continue;
           this.addEvent("Passive", unit, null, 0, `${unit.data.name} 触发开场被动：${p.name}`);
-          this.executeSkill(unit, p);
+          this.executeSkill(unit, p, PASSIVE_EXEC);
         }
       }
     }
@@ -834,7 +844,7 @@ class BattleController{
   }
 
   /* ============ 技能执行（与 C# SkillExecutor 对应）============ */
-  executeSkill(caster, skill){
+  executeSkill(caster, skill, opts){
     this.addEvent("SkillUsed", caster, null, 0, `${caster.data.name} 使用了 ${skill.name}`);
     // dmgMult/targetType 现在支持多个（同一技能多个 DamageMultiplier tag 可选不同目标）
     // 数组中每项：{mult, target, repeat}（repeat 由【Repeat】词条填入，>1 表示同 target 多打几下）
@@ -955,10 +965,12 @@ class BattleController{
           `  ${caster.data.name} 【大地赐福】释放大招后回满气势（${Math.round(before)} → ${Math.round(caster.currentEnergy)}）`);
       }
     }
-    // 通灵师系统：caster 出手后给本阵营所有通灵师加通灵点（点数 = 本回合攻击次数，含 Repeat）。
-    // 满 7 立刻触发变身。同一阵营只允许一位通灵师触发，多人满时把决定权抛给 UI（_pickSpiritist）。
-    // 单通灵师场景默认就自动选，多人弹框由 ui-battle.js 接管（见 _spiritCandidates）。
-    this._processSpiritPoints(caster, this._countSkillHits(skill, dmgHits));
+    // 通灵师系统：caster **主动出手**后给本阵营所有通灵师加通灵点（点数 = 本回合攻击次数，含 Repeat）。
+    // 满 7 立刻触发变身。被动触发 / 英雄技触发的 executeSkill 不算通灵判定范围
+    // （opts.spiritEligible === false），只有 _processTurn / 连击额外回合的主动出手才给。
+    if(!opts || opts.spiritEligible !== false){
+      this._processSpiritPoints(caster, this._countSkillHits(skill, dmgHits));
+    }
   }
   _execDamage(caster, dmgHits, trueDmgHits, comboCount, critChance, critMult,
               piercePct, splashPct, followUpChance, onHitDebuffs, lifestealPct, energyDrain, multiTargetCount){
@@ -1081,9 +1093,12 @@ class BattleController{
           const energyAtCast = caster.currentEnergy;
           const mult = energyMultiplier(energyAtCast);
           caster._castEnergyMult = mult;
-          // 星月同辉下不清零
+          // 星月同辉下不清零；诺雅（infiniteEnergy）开大额外 +50
           if(!caster.energyDrainImmunity) caster.currentEnergy = 0;
-          const drainText = caster.energyDrainImmunity ? "（气势免消耗）" : "（气势清零）";
+          if(caster.data.infiniteEnergy) gainEnergy(caster, 50);
+          const drainText = caster.energyDrainImmunity
+            ? (caster.data.infiniteEnergy ? `（气势免消耗 +50 → ${Math.round(caster.currentEnergy)}）` : "（气势免消耗）")
+            : "（气势清零）";
           this.addEvent("UltimateUsed", caster, null, Math.trunc(energyAtCast),
             `【连击】${caster.data.name} 额外出手，再放一次大招 ${caster.ultimate.name}！气势 ${Math.round(energyAtCast)} → 伤害 ×${mult.toFixed(2)}${drainText}`);
           this.executeSkill(caster, caster.ultimate);
@@ -1163,9 +1178,9 @@ class BattleController{
     // 主角通灵师：只有 pref 指向的那个（或默认第一个）才累计
     const main = pref ? spiritists.find(u=>u.data.id===pref) : spiritists[0];
     if(!main) return;
-    // 诺雅：光/暗 caster +2，其他元素 +1；其他通灵师默认 +1
-    const ratio = main.getSpiritPointGain(caster);
-    const add = hitCount * ratio;
+    // 差异化规则：昆仑默认按攻击次数；诺雅光/暗固定 +2，其他属性 +0
+    const add = main.getSpiritPointGain(caster, hitCount);
+    if(add<=0) return;
     main.spiritPoints = (main.spiritPoints||0) + add;
     this.addEvent("Info", caster, main, main.spiritPoints,
       `  ${caster.data.name} 出手 ${hitCount} 次 → ${main.data.name} 获得 ${add} 通灵点（${main.spiritPoints}/${main.spiritThreshold}）`);
@@ -1542,13 +1557,10 @@ class BattleController{
           }
         }
         if(!rt) break;
-        // 【禁疗】拦截：被复活的目标身上挂着 HealBlock 时（按用户 9/10 修复）：
+        // 【禁疗】拦截：被复活的目标身上挂着 HealBlock 时：
         //   - 有【复活储备】（tag.useCharge + caster.reviveCharges>0）→ 扣 1 层储备 + 移除 HealBlock + 复活照常
-        //   - 没复活储备 → 复活失败 + 移除 HealBlock（这样下一次死亡时队友的 Revive 可以正常生效，
-        //                  因为「下次死亡后被复活」是默认按「那次死亡时没有 HealBlock」走的）
-        // 两种分支都消耗这次禁疗本身，区别在于：
-        //   - 扣储备：复活成功，HealBlock 被「抵消」掉；
-        //   - 没储备：复活失败，HealBlock 被「用」掉（无意义了，目标已经死了）。
+        //   - 没复活储备 → 复活失败，HealBlock **保留**（禁疗是永久的，只有复活储备能抵消，
+        //                  下次死亡被复活时依然无效）
         // 用 consumeCharge 标记避免下方 if(rt) 复活分支再扣一次储备。
         let consumeCharge = tag.useCharge;
         if(rt.hasStatus("HealBlock")){
@@ -1560,9 +1572,8 @@ class BattleController{
             this.addEvent("Info", caster, rt, 0,
               `  ${rt.data.name} 处于【禁疗】，花 1 次【复活储备】抵消（剩余 ${caster.reviveCharges}）`);
           } else {
-            const idx = rt.statusEffects.findIndex(s=>s.type==="HealBlock");
-            if(idx>=0) rt.statusEffects.splice(idx,1);
-            this.addEvent("Info", caster, rt, 0, `  ${rt.data.name} 处于【禁疗】，复活无效`);
+            this.addEvent("Info", caster, rt, 0,
+              `  ${rt.data.name} 处于【禁疗】，复活无效（永久，只有【复活储备】能抵消）`);
             break;
           }
         }
