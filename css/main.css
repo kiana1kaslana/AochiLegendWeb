@@ -1,0 +1,288 @@
+/* main.css —— 由单文件 index.html 机械拆出，样式零改动 */
+:root{
+  --fire:#e74c3c;--water:#3498db;--grass:#27ae60;--light:#f1c40f;--dark:#8e44ad;
+  --bg:#f5f6fa;--card:#fff;--border:#e0e3eb;--text:#2c3e50;--muted:#8a94a6;
+  --accent:#5b6ee1;--hp:#e74c3c;--hp-bg:#f0d5d5;--en:#f39c12;--en-bg:#f7e8cc;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+h1{font-size:18px;padding:14px 20px 4px}
+.subtitle{padding:0 20px 10px;color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:2px solid var(--border);background:var(--card)}
+.tab{padding:10px 22px;cursor:pointer;border-radius:8px 8px 0 0;color:var(--muted);font-weight:bold;user-select:none}
+.tab:hover{background:#eef0f6}
+.tab.active{color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px}
+.page{display:none;padding:16px 20px;max-width:1200px;margin:0 auto}
+.page.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.card h3{font-size:14px;margin-bottom:10px;color:var(--accent)}
+
+/* ============ 布阵 ============ */
+.lineup-wrap{display:flex;gap:16px;justify-content:center;align-items:center;flex-wrap:wrap}
+.vs-mid{font-size:32px;font-weight:bold;color:#bdc3c7;letter-spacing:6px;align-self:center}
+.side-box h2{text-align:center;font-size:14px;margin-bottom:8px}
+.grid9{display:grid;grid-template-columns:repeat(3,72px);grid-template-rows:repeat(3,72px);gap:6px;background:var(--card);padding:10px;border:1px solid var(--border);border-radius:10px}
+.slot{border:2px dashed #cdd3e0;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:all .15s}
+.slot:hover{border-color:var(--accent);background:#f0f2fb}
+.slot.filled{border-style:solid;border-width:2px}
+.slot .cname{font-size:12px;font-weight:bold}
+.slot .cele{font-size:10px;padding:1px 6px;border-radius:8px;color:#fff;margin-bottom:2px}
+.slot .lvl{font-size:10px;color:var(--muted)}
+.row-label{font-size:11px;color:var(--muted);text-align:center;margin:2px 0}
+.pool{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.pool-char{width:88px;padding:8px;border:2px solid transparent;border-radius:8px;background:var(--card);cursor:pointer;text-align:center;border:1px solid var(--border)}
+.pool-char:hover{border-color:var(--accent)}
+.pool-char.selected{border:2px solid var(--accent);background:#f0f2fb}
+.pool-char .cname{font-size:13px;font-weight:bold}
+.pool-char .cstats{font-size:10px;color:var(--muted);margin-top:3px}
+.btn{padding:7px 16px;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;margin-right:8px}
+.btn:hover{opacity:.9}
+.btn.gray{background:#7f8c9b}
+.btn.orange{background:#e67e22}
+.btn.small{padding:4px 10px;font-size:12px}
+
+/* ============ 战斗 ============ */
+/* ============ 战斗（横板布局：左我右敌）============ */
+.battle-field{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px}
+.round-badge{font-size:13px;padding:6px 14px;background:#fff;border:1px solid var(--border);border-radius:18px;font-weight:bold}
+.bgrid-wrap{display:flex;align-items:center;gap:18px}
+.bgrid-side{display:flex;flex-direction:column;align-items:center;gap:6px}
+.side-name{font-size:13px;font-weight:bold;padding:3px 10px;border-radius:10px;color:#fff}
+.side-player{background:#3498db}
+.side-enemy{background:#e74c3c}
+.bgrid-vs{font-size:32px;font-weight:bold;color:#bdc3c7;letter-spacing:4px}
+.bgrid{display:grid;grid-template-columns:repeat(3,110px);grid-template-rows:repeat(3,96px);gap:8px}
+.bgrid-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px}
+.bgrid-player{border:1px solid var(--border);border-radius:10px;padding:10px;background:#f7faff}
+.bgrid-enemy{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff7f7}
+.bgrid-vs{font-size:36px;font-weight:bold;color:#bdc3c7;letter-spacing:6px;padding:0 6px;align-self:center}
+.order-strip{font-size:11px;color:var(--muted);text-align:center;min-height:18px;padding:6px 10px;white-space:pre-wrap;word-break:break-all;line-height:1.5}
+.bcell{background:var(--card);border:2px solid var(--border);border-radius:10px;position:relative;display:flex;flex-direction:column;padding:4px 6px;transition:box-shadow .2s,border-color .2s}
+.bcell.enemy-cell{border-color:#e8c8c8}
+.bcell.player-cell{border-color:#c8d8e8}
+.bcell.dead{opacity:.28;filter:grayscale(1)}
+.bcell.acting{box-shadow:0 0 0 3px var(--accent);border-color:var(--accent)}
+.bcell.active-turn{box-shadow:0 0 0 3px #f1c40f;border-color:#f39c12;background:#fffaf0}
+.bcell.targeted{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+/* 行动中/必杀 标识 */
+.bcell .act-badge{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:13px;font-weight:bold;color:#fff;padding:2px 8px;border-radius:8px;background:rgba(231,76,60,.92);box-shadow:0 2px 6px rgba(0,0,0,.25);pointer-events:none;z-index:8;animation:badgePop .35s;letter-spacing:1px}
+.bcell .act-badge.ult{background:linear-gradient(135deg,#c0392b,#e74c3c);font-size:15px;padding:3px 10px;animation:badgePop .35s,ultGlow .8s ease-in-out infinite alternate}
+.bcell .act-badge.skill{background:rgba(241,196,15,.92);color:#5d4500}
+.bcell .act-badge.true{background:linear-gradient(135deg,#6c3483,#a569bd);font-size:12px}
+/* 【免疫】挡伤害：蓝色，和闪避的紫色飘字区分开 */
+.bcell .act-badge.immune{background:linear-gradient(135deg,#2f6fb5,#5499c7);font-size:12px}
+/* 【龙魂追击】每次追击亮一次 */
+.bcell .act-badge.soul{background:linear-gradient(135deg,#6c3483,#a569bd);font-size:12px}
+/* 英雄技发动：金色，和基础职业的金标呼应 */
+.bcell .act-badge.hero{background:linear-gradient(135deg,#b8941d,#e0c04a);color:#3d2f00;font-size:12px}
+@keyframes badgePop{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}60%{transform:translate(-50%,-50%) scale(1.15);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+@keyframes ultGlow{from{box-shadow:0 0 6px rgba(231,76,60,.6)}to{box-shadow:0 0 16px rgba(231,76,60,1)}}
+.bcell .top{display:flex;justify-content:space-between;align-items:center}
+.bcell .uname{font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62px}
+.bcell .el-badge{font-size:9px;color:#fff;padding:0 5px;border-radius:6px}
+.bcell .bars{margin-top:auto}
+.hpbar,.enbar{height:7px;border-radius:4px;position:relative;overflow:hidden;background:var(--hp-bg);margin-top:2px}
+.enbar{background:var(--en-bg);height:5px;margin-top:1px}
+.hpbar .fill,.enbar .fill{height:100%;border-radius:5px;transition:width .3s}
+.hpbar .fill{background:var(--hp)}
+.enbar .fill{background:var(--en)}
+.bcell .nums{font-size:9px;color:var(--muted);display:flex;justify-content:space-between}
+.bcell .st-chips{position:absolute;top:-8px;right:-4px;display:flex;flex-wrap:wrap;gap:1px;max-width:92px;z-index:5;justify-content:flex-end}
+.st-chip{font-size:9px;color:#fff;border-radius:6px;padding:0 4px;line-height:14px;background:#7f8c8b}
+.st-chip.buff{background:#27ae60}
+.st-chip.debuff{background:#e67e22}
+.st-chip.debuff{border-color:#e74c3c;color:#c0392b}
+.st-chip.buff{border-color:#27ae60;color:#1e8449}
+.st-chip.soul{background:#8e44ad;font-weight:bold;box-shadow:0 0 0 1px #fff inset}
+/* 【免疫】剩余层数：蓝色，和紫色的龙魂、红色的控制一眼分开 */
+.st-chip.immune{background:#2f6fb5;font-weight:bold;box-shadow:0 0 0 1px #fff inset}
+/* 【复活储备】：绿色，跟蓝色的免疫、紫色的龙魂分开 */
+.st-chip.revive{background:#27ae60;font-weight:bold;box-shadow:0 0 0 1px #fff inset}
+.st-chip.stealth{background:#8e44ad;box-shadow:0 0 0 1px #fff inset}
+.st-chip.ctl{background:#c0392b;font-weight:bold;box-shadow:0 0 0 1px #fff inset}
+/* 【隐身】：格子半透明 + 名字划线，一眼能看出"打不到他" */
+.bcell.stealth{opacity:0.42;filter:grayscale(0.35)}
+.bcell.stealth .hpbar .fill{background:#8e44ad}
+/* 被【控制】：格子描红边 */
+.bcell.ctl{box-shadow:0 0 0 2px #e74c3c inset}
+.bcell .mult-row{margin-top:2px;text-align:center}
+.bcell .en-mult{font-size:9px;font-weight:bold;color:#fff;background:linear-gradient(90deg,#e67e22,#c0392b);border-radius:6px;padding:0 5px;line-height:14px;display:inline-block}
+.bcell .cls-mark{position:absolute;left:2px;top:2px;font-size:8px;width:13px;height:13px;line-height:13px;text-align:center;border-radius:50%;color:#fff;z-index:4;opacity:0.9}
+/* 特殊职业角标排在基础职业右边（【英雄】是叠加在基础职业之上的第二职业） */
+.bcell .cls-mark.sp{left:17px;box-shadow:0 0 0 1px #fff}
+.float-num{position:absolute;left:50%;top:20%;transform:translateX(-50%);font-weight:bold;font-size:18px;pointer-events:none;animation:floatUp 1s forwards;z-index:10}
+@keyframes floatUp{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-40px)}}
+.battle-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px}
+.battle-controls input[type=text]{width:90px;padding:5px 8px;border:1px solid var(--border);border-radius:6px}
+.battle-log{height:260px;overflow-y:auto;font-size:12px;line-height:1.7;padding:10px 14px;background:#fafbfd;border-radius:8px;border:1px solid var(--border);font-family:Consolas,"Microsoft YaHei",monospace}
+.battle-log .cur{background:#fff3d6;border-radius:4px}
+.battle-log .rnd{color:var(--accent);font-weight:bold}
+.battle-log .ult{color:#c0392b;font-weight:bold}
+/* 属于同一个【群攻】并行帧的日志行：左侧竖线标出来，一眼看出这几条是同时结算的 */
+.battle-log .par{border-left:3px solid #d0453c;padding-left:6px;margin-left:2px;background:#fdf4f3}
+.vs-label{text-align:center;font-size:13px;color:var(--muted);letter-spacing:6px;margin:2px 0}
+.battle-layout{display:flex;gap:16px;align-items:flex-start}
+.battle-left{flex:1;min-width:520px}
+.battle-right{width:380px}
+@media(max-width:980px){.battle-layout{flex-direction:column}.battle-right{width:100%}}
+.round-badge{text-align:center;font-size:13px;font-weight:bold;color:var(--accent);padding:4px}
+
+/* ============ 技能 ============ */
+.skill-layout{display:flex;gap:14px;align-items:flex-start}
+.skill-list{width:340px;max-height:640px;overflow-y:auto}
+.skill-item{padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--card)}
+.skill-item:hover{border-color:var(--accent)}
+.skill-item.selected{border:2px solid var(--accent);background:#f0f2fb}
+.skill-item .sname{font-weight:bold;font-size:13px}
+.skill-item .strig{font-size:10px;color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px}
+.skill-item .sdesc{font-size:11px;color:var(--muted);margin-top:4px}
+.tag-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.tag-chip{font-size:10px;background:#eef0f6;border-radius:4px;padding:2px 7px;border:1px solid var(--border);cursor:help}
+.tag-chip.big{font-size:11px;padding:3px 9px}
+.tag-chip.cat-dmg{background:#fdeaea;border-color:#f5c6c6;color:#c0392b}
+.tag-chip.cat-def{background:#e8f4fd;border-color:#bcd9f2;color:#2471a3}
+.tag-chip.cat-st{background:#fdf3e0;border-color:#f2dcb0;color:#b9770e}
+.tag-chip.cat-fn{background:#e9f8ef;border-color:#b8e6c9;color:#1e8449}
+.tag-chip.cat-own{background:#f4ecfa;border-color:#d9c2ec;color:#76389a}
+.tag-chip.t-dmg{background:#fdeaea;border-color:#f5c6c6}
+.tag-chip.t-def{background:#e8f4fd;border-color:#bcd9f2}
+.tag-chip.t-st{background:#fdf3e0;border-color:#f2dcb0}
+.tag-chip.t-fn{background:#e9f8ef;border-color:#b8e6c9}
+.skill-editor{flex:1;min-width:480px}
+.tag-row{display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap}
+.tag-row select,.tag-row input{padding:5px;border:1px solid var(--border);border-radius:6px;font-size:12px}
+.tag-row input{width:64px}
+.tag-row select.tt{width:110px}
+.tag-row select.tg{width:110px}
+.form-row{display:flex;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap}
+.form-row label{font-size:12px;color:var(--muted)}
+.form-row input{padding:5px 8px;border:1px solid var(--border);border-radius:6px}
+
+/* ============ 养成 ============ */
+.growth-layout{display:flex;gap:16px;flex-wrap:wrap}
+.growth-left{width:300px}
+.growth-right{flex:1;min-width:400px}
+.char-pick{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.char-pick .cp{padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;background:var(--card)}
+.char-pick .cp.selected{border-color:var(--accent);background:#f0f2fb;font-weight:bold}
+.growth-table{width:100%;border-collapse:collapse;font-size:13px}
+.growth-table th,.growth-table td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:left}
+.growth-table th{color:var(--muted);font-weight:normal}
+.growth-table .val{font-weight:bold;font-size:15px}
+.growth-table .delta{color:#27ae60;font-size:11px}
+.growth-curve{display:flex;align-items:flex-end;gap:3px;height:120px;padding:10px 0}
+.growth-curve .bar{flex:1;background:linear-gradient(180deg,var(--accent),#8a94e8);border-radius:3px 3px 0 0;position:relative;min-width:6px}
+.growth-curve .bar .bv{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);white-space:nowrap}
+.growth-curve .bar.cur{background:linear-gradient(180deg,#e67e22,#f0b27a)}
+
+/* ===== 角色仓库 ===== */
+.roster-layout{display:flex;gap:14px;align-items:flex-start}
+.roster-list{width:300px;max-height:680px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--card)}
+.roster-item{padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;cursor:pointer;background:#fff;display:flex;justify-content:space-between;align-items:center}
+.roster-item:hover{border-color:var(--accent)}
+.roster-item.selected{border:2px solid var(--accent);background:#f0f2fb}
+.roster-item .ri-name{font-weight:bold;font-size:13px}
+.roster-item .ri-meta{font-size:10px;color:var(--muted)}
+.roster-item .ri-tags{display:flex;gap:4px;align-items:center;margin:3px 0}
+.roster-detail{flex:1;min-width:520px}
+.roster-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
+/* 【星神】装配面板 */
+.sg-wrap{background:#fbfcff;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px}
+.sg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sg-slot{background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px}
+.sg-slot.empty{background:#fafbfd;border-style:dashed}
+.sg-slot-head{font-size:10px;color:var(--muted);margin-bottom:4px}
+.sg-slot select{width:100%;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:#fff;color:inherit}
+.sg-slot-desc{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.5}
+.sg-summary{font-size:12px;color:var(--muted);margin-top:8px}
+.sg-legend{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px}
+.sg-legend-item{border-left:3px solid #999;background:#fff;padding:5px 8px;border-radius:0 4px 4px 0;font-size:11px}
+.sg-legend-name{font-weight:bold;display:block}
+.sg-legend-v{color:#e67e22}
+.sg-legend-desc{color:var(--muted);display:block;margin-top:2px;line-height:1.5}
+
+/* ===== 职业面板 ===== */
+.class-panel{background:#fff;border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:10px 12px;margin-bottom:10px}
+.class-panel .cp-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:5px}
+.class-panel .cp-badge{font-size:10px;padding:2px 8px;border-radius:10px;border:1px solid transparent}
+.class-panel .cp-body{font-size:11px;color:var(--muted);line-height:1.6}
+/* 【英雄】特殊职业面板：金色描边 + 淡金底，和基础职业面板不会看混 */
+.class-panel.sp{background:#fffdf5;border-color:#e8dca8;border-left-color:#c9a227}
+/* 英雄技区块：金色虚线框。用虚线是为了强调「战前一次性结算」，和打起来才触发的技能区分 */
+.hero-skill-wrap{background:#fffdf5;border:1px dashed #d8c880;border-radius:6px;padding:8px 10px;margin-bottom:8px}
+.hero-skill-wrap .skill-block{background:transparent;border:none;padding:0;margin-bottom:6px}
+.hero-skill-wrap .hero-cond{font-size:11px;color:#8a7419;background:#fdf6dd;border-radius:4px;padding:5px 8px;line-height:1.6}
+.class-hint{font-size:11px;color:var(--muted);border-left:3px solid var(--accent);background:#fafbff;padding:7px 10px;border-radius:4px;margin-bottom:10px;line-height:1.6}
+.class-hint span{margin-right:12px}
+.editing-hint{font-size:12px;color:#8a6d0b;background:#fdf6dd;border:1px solid #e8d387;border-radius:5px;padding:6px 10px;margin-bottom:8px}
+.save-flash{font-size:11px;color:#1e8449;margin-left:8px;opacity:0;transition:opacity .3s}
+.shared-by{font-size:10px;color:#b9770e;background:#fdf3e0;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap}
+
+/* ===== 词条讲解（仓库内嵌 / 词条图鉴页共用）===== */
+.glossary-inline{margin-top:14px;padding-top:12px;border-top:1px dashed var(--border)}
+.tag-doc{background:#fff;border:1px solid var(--border);border-left:3px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px}
+.tag-doc.own{background:#fbf7fe}
+.tag-doc .td-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.tag-doc .td-en{font-size:10px;color:var(--muted);font-family:Consolas,monospace}
+.tag-doc .td-cat{font-size:10px;padding:1px 7px;border-radius:8px;border:1px solid;opacity:0.85}
+.tag-doc .td-desc{font-size:12px;line-height:1.65;color:var(--text)}
+.tag-doc .td-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.tag-doc .td-meta b{color:var(--accent)}
+
+/* ===== 词条图鉴页 ===== */
+.gl-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.gl-nav .gl-tab{font-size:12px;padding:5px 12px;border:1px solid var(--border);border-radius:14px;cursor:pointer;background:#fff;user-select:none}
+.gl-nav .gl-tab:hover{background:#f0f2fb}
+.gl-nav .gl-tab.active{color:#fff;font-weight:bold;border-color:transparent}
+.gl-search{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:220px}
+.gl-cat{margin-bottom:16px}
+.gl-cat-head{display:flex;align-items:baseline;gap:10px;padding:6px 10px;border-radius:6px;margin-bottom:8px}
+.gl-cat-head h3{margin:0;font-size:14px}
+.gl-cat-head .gl-cat-desc{font-size:11px;color:var(--muted);flex:1}
+.gl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gl-card{background:#fff;border:1px solid var(--border);border-radius:6px;padding:10px 12px;border-left:3px solid var(--border)}
+.gl-card h4{margin:0 0 5px 0;font-size:13px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.gl-card .gl-en{font-size:10px;color:var(--muted);font-family:Consolas,monospace;font-weight:normal}
+.gl-card .gl-desc{font-size:12px;line-height:1.65}
+.gl-card .gl-val{font-size:11px;color:var(--muted);margin-top:5px}
+.gl-card .gl-val b{color:var(--accent)}
+.gl-card .gl-used{font-size:10px;color:var(--muted);margin-top:6px;padding-top:5px;border-top:1px dashed var(--border)}
+.pipe-flow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:8px}
+.pipe-flow .pf-node{font-size:11px;padding:3px 9px;border-radius:12px;background:#f0f2fb;border:1px solid var(--border);color:var(--text)}
+.pipe-flow .pf-arrow{color:var(--muted);font-size:11px}
+.stat-box{background:#fff;border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+.stat-box .sb-label{font-size:11px;color:var(--muted)}
+.stat-box .sb-val{font-size:22px;font-weight:bold;color:var(--accent)}
+.stat-box .sb-base{font-size:10px;color:var(--muted);margin-top:2px}
+.skill-block{background:#fff;border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px}
+.skill-block h4{margin:0 0 6px 0;font-size:13px;display:flex;justify-content:center;align-items:center;gap:6px}
+.skill-block .sk-dmg{font-size:11px;color:var(--muted);margin-bottom:4px}
+.skill-block .sk-dmg strong{color:#e74c3c}
+
+/* ===== 角色设计器 ===== */
+.designer-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.designer-block{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px}
+.designer-block h3{margin-top:0}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-grid label{display:flex;flex-direction:column;font-size:12px;color:var(--muted)}
+.form-grid input,.form-grid select{padding:6px;border:1px solid var(--border);border-radius:4px;font-size:13px;margin-top:2px}
+.des-skill-list{margin-top:6px}
+.des-skill-item{border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px;background:#fafbff}
+.des-skill-item h4{margin:0 0 4px 0;font-size:13px}
+.des-tag-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;padding:6px;background:#f5f6fa;border-radius:4px}
+.des-tag-row select,.des-tag-row input{font-size:12px;padding:3px 5px;border:1px solid var(--border);border-radius:3px}
+.des-tag-row .num{width:60px}
+.des-tag-row .ch{width:55px}
+.des-tag-row .dur{width:45px}
+.des-tag-row .tg{width:130px}
+.des-skill-pick{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.des-skill-pick select{flex:1;padding:5px;border:1px solid var(--border);border-radius:4px}
+.element-pick{display:flex;gap:4px;flex-wrap:wrap}
+.element-pick .ep{font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:#fff}
+.element-pick .ep.active{color:#fff;border-color:transparent}
+.des-save-bar{margin-top:14px;text-align:right}
+.preview-card{border:2px dashed var(--accent);border-radius:8px;padding:10px;margin-top:10px;background:#f0f4ff}
+.lvl-slider{width:100%;margin:10px 0;accent-color:var(--accent)}
+.big-level{text-align:center;font-size:40px;font-weight:bold;color:var(--accent);margin:6px 0}
+.exp-info{text-align:center;color:var(--muted);font-size:12px}

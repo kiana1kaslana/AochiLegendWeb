@@ -1,11 +1,34 @@
 # 奥奇传说·横板战棋（H5 复刻版）
 
-一个仿奥奇传说玩法的单文件网页游戏：九宫格布阵 + 自动回合战斗 + 通用技能词条系统。
-零依赖、零安装，浏览器打开就能玩。
+一个仿奥奇传说玩法的网页游戏：九宫格布阵 + 自动回合战斗 + 通用技能词条系统。
+纯原生 JS，无框架无构建，浏览器打开 `index.html` 就能玩。
 
 **在线玩：** https://kiana1kaslana.github.io/AochiLegendWeb/
 
-（不想用链接的话，下载本仓库的 `index.html` 双击打开也一样）
+## 目录结构
+
+```
+h5_test/
+├── index.html          # 页面骨架：DOM 结构 + 按序引入下面这些 js
+├── css/
+│   └── main.css        # 全部样式
+├── js/
+│   ├── data.js         # 数据层：角色/技能/星神/阵容/词条表/养成曲线
+│   ├── engine.js       # 战斗引擎：BattleController / BattleUnit / BattleGrid
+│   ├── ui-battle.js    # 布阵 / 战斗回放 / 胜率模拟 / 技能编辑
+│   ├── ui-roster.js    # 角色仓库（含星神装配）
+│   ├── ui-glossary.js  # 基础词条表（词条图鉴）
+│   ├── ui-designer.js  # 角色自定义设计器
+│   ├── storage.js      # localStorage 存档（DataIO）
+│   └── main.js         # 启动引导 + headless 测试导出
+└── assets/
+    ├── img/            # 立绘 / 头像 / 图标（portraitSlot 字段留好了）
+    ├── audio/          # 音效 / BGM
+    └── data/           # 外部数据（角色/技能 JSON 等）
+```
+
+**给 js 加新文件时**：在 `index.html` 里按依赖顺序加 `<script src>` 标签，并且
+`.workbuddy/tests/verify_battle.js` 顶部的 `JS_ORDER` 数组要同步（不同步测试会直接报错提醒）。
 
 ## 玩什么
 
@@ -16,24 +39,16 @@
 - **角色设计器**：自己捏角色，基础属性 + 技能词条 + 大招，捏完直接进战斗
 - **胜率模拟**：当前阵容自动跑 100 场，看胜率
 
-## 几个核心机制
+## 加美术资源
 
-- **气势**：普攻和受击回气势，满 100 放大招，攒到 200 开大伤害更高
-- **连击**：不是同一招多打几段，是额外多一个出手回合
-- **毁灭伤害**：真实伤害，无视减伤护盾格挡暴击
-- **格挡/闪避/暴击**：星神和词条都能给，概率结算
-- **控制**：被控了跳过出手，连气势都不消耗
+图片丢 `assets/img/`，音频丢 `assets/audio/`，代码里相对路径引用（`assets/img/xxx.png`）。
+角色的 `portraitSlot` / `modelSlot` 字段已经预留（见 `js/storage.js` 的 export），后面接立绘系统时用。
 
 ## 数据存哪
 
-进度存在浏览器 localStorage 里（本页面/本文件的记忆），清浏览器数据会丢，导出 JSON 可以备份。
+进度存在浏览器 localStorage 里，清浏览器数据会丢，导出 JSON 可以备份。
 
 ## 反馈
 
 玩的过程中发现数值离谱的、行为不对的、界面别扭的，直接开 [Issue](https://github.com/kiana1kaslana/AochiLegendWeb/issues) 说一下：
 哪个角色、哪个技能、你预期是什么、实际发生了什么。最好能带上战斗日志里的那段文字。
-
-## 技术
-
-单 HTML 文件约 240KB，原生 JS，无框架无构建。战斗引擎和 UI 全部内联，方便单文件分发。
-C# 控制台版另有一个实现，行为保持一致。
