@@ -5,17 +5,20 @@
   --accent:#5b6ee1;--hp:#e74c3c;--hp-bg:#f0d5d5;--en:#f39c12;--en-bg:#f7e8cc;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+html,body{height:100%}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#fff;color:var(--text);font-size:14px}
 h1{font-size:18px;padding:14px 20px 4px}
 .subtitle{padding:0 20px 10px;color:var(--muted);font-size:12px}
-.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:2px solid var(--border);background:var(--card)}
+.tabs{display:flex;gap:4px;padding:0 20px;border-bottom:2px solid var(--border);background:#fff}
 .tab{padding:10px 22px;cursor:pointer;border-radius:8px 8px 0 0;color:var(--muted);font-weight:bold;user-select:none}
 .tab:hover{background:#eef0f6}
 .tab.active{color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px}
-.page{display:none;padding:16px 20px;max-width:1200px;margin:0 auto}
+.page{display:none;padding:16px 20px;max-width:1200px;margin:0 auto;background:#fff}
 .page.active{display:block}
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
 .card h3{font-size:14px;margin-bottom:10px;color:var(--accent)}
+/* 战斗页：用户要求「全屏、纯白背景」。把 page 限制器扩到 viewport 宽度并去掉 padding */
+.page#page-battle{display:block;max-width:none;padding:0;background:#fff;min-height:calc(100vh - 92px)}
 
 /* ============ 布阵 ============ */
 .lineup-wrap{display:flex;gap:16px;justify-content:center;align-items:center;flex-wrap:wrap}
@@ -51,19 +54,20 @@ h1{font-size:18px;padding:14px 20px 4px}
 .side-player{background:#3498db}
 .side-enemy{background:#e74c3c}
 .bgrid-vs{font-size:32px;font-weight:bold;color:#bdc3c7;letter-spacing:4px}
-.bgrid{display:grid;grid-template-columns:repeat(3,128px);grid-template-rows:repeat(3,122px);gap:8px}
-.bgrid-row{display:flex;gap:14px;align-items:center;justify-content:center;margin-top:8px}
-.bgrid-player{border:1px solid var(--border);border-radius:10px;padding:10px;background:#f7faff}
-.bgrid-enemy{border:1px solid var(--border);border-radius:10px;padding:10px;background:#fff7f7}
-.bgrid-vs{font-size:36px;font-weight:bold;color:#bdc3c7;letter-spacing:6px;padding:0 6px;align-self:center}
-.order-strip{font-size:11px;color:var(--muted);text-align:center;min-height:18px;padding:6px 10px;white-space:pre-wrap;word-break:break-all;line-height:1.5}
-.bcell{background:var(--card);border:2px solid var(--border);border-radius:10px;position:relative;display:flex;flex-direction:column;padding:4px 6px;transition:box-shadow .2s,border-color .2s}
+.bgrid{display:grid;grid-template-columns:repeat(3,180px);grid-template-rows:repeat(3,180px);gap:10px}
+.bgrid-row{display:flex;gap:18px;align-items:center;justify-content:center;margin-top:10px}
+.bgrid-player{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
+.bgrid-enemy{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
+.bgrid-vs{font-size:44px;font-weight:bold;color:#dde0e8;letter-spacing:6px;padding:0 6px;align-self:center}
+.order-strip{font-size:12px;color:var(--muted);text-align:center;min-height:18px;padding:8px 10px;white-space:pre-wrap;word-break:break-all;line-height:1.5}
+.bcell{background:#fff;border:2px solid var(--border);border-radius:12px;position:relative;display:flex;flex-direction:column;padding:5px 7px;transition:box-shadow .2s,border-color .2s}
 /* 战斗格子立绘：铺满格子做背景，名字/血条压在上面 */
-.bc-portrait{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:8px;z-index:0;pointer-events:none}
-.bc-portrait-fallback{display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.35)}
-/* 有立绘的格子：底部垫一层白色渐变，保证名字/血条/数值可读 */
-.bcell:has(.bc-portrait)::after{content:"";position:absolute;inset:0;border-radius:8px;z-index:1;pointer-events:none;
-  background:linear-gradient(to bottom,rgba(255,255,255,0) 26%,rgba(255,255,255,.42) 62%,rgba(255,255,255,.72) 86%,rgba(255,255,255,.85))}
+.bc-portrait{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:10px;z-index:0;pointer-events:none}
+.bc-portrait-fallback{display:flex;align-items:center;justify-content:center;font-size:46px;font-weight:bold;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+/* 有立绘的格子：底部垫一层白色渐变，保证名字/血条/数值可读。
+   渐变从下往上覆盖立绘下半部，给名字和数值一个干净的「小白底」 */
+.bcell:has(.bc-portrait)::after{content:"";position:absolute;inset:0;border-radius:10px;z-index:1;pointer-events:none;
+  background:linear-gradient(to top,rgba(255,255,255,.96) 0%,rgba(255,255,255,.92) 22%,rgba(255,255,255,.55) 38%,rgba(255,255,255,0) 58%)}
 .bcell .top,.bcell .bars{position:relative;z-index:2}
 .bcell .top{text-shadow:0 0 3px #fff,0 1px 2px #fff}
 .bcell.enemy-cell{border-color:#e8c8c8}
@@ -87,16 +91,16 @@ h1{font-size:18px;padding:14px 20px 4px}
 @keyframes badgePop{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}60%{transform:translate(-50%,-50%) scale(1.15);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
 @keyframes ultGlow{from{box-shadow:0 0 6px rgba(231,76,60,.6)}to{box-shadow:0 0 16px rgba(231,76,60,1)}}
 .bcell .top{display:flex;justify-content:space-between;align-items:center}
-.bcell .uname{font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62px}
-.bcell .el-badge{font-size:9px;color:#fff;padding:0 5px;border-radius:6px}
-.bcell .bars{margin-top:auto}
-.hpbar,.enbar{height:7px;border-radius:4px;position:relative;overflow:hidden;background:var(--hp-bg);margin-top:2px}
-.enbar{background:var(--en-bg);height:5px;margin-top:1px}
+.bcell .uname{font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px}
+.bcell .el-badge{font-size:10px;color:#fff;padding:1px 6px;border-radius:6px}
+.bcell .bars{margin-top:auto;padding:4px 0 2px}
+.hpbar,.enbar{height:8px;border-radius:4px;position:relative;overflow:hidden;background:var(--hp-bg);margin-top:3px}
+.enbar{background:var(--en-bg);height:6px;margin-top:2px}
 .hpbar .fill,.enbar .fill{height:100%;border-radius:5px;transition:width .3s}
 .hpbar .fill{background:var(--hp)}
 .enbar .fill{background:var(--en)}
-.bcell .nums{font-size:9px;color:var(--muted);display:flex;justify-content:space-between}
-.bcell .st-chips{position:absolute;top:-8px;right:-4px;display:flex;flex-wrap:wrap;gap:1px;max-width:92px;z-index:5;justify-content:flex-end}
+.bcell .nums{font-size:10px;color:var(--muted);display:flex;justify-content:space-between}
+.bcell .st-chips{position:absolute;top:-10px;right:-6px;display:flex;flex-wrap:wrap;gap:2px;max-width:120px;z-index:5;justify-content:flex-end}
 .st-chip{font-size:9px;color:#fff;border-radius:6px;padding:0 4px;line-height:14px;background:#7f8c8b}
 .st-chip.buff{background:#27ae60}
 .st-chip.debuff{background:#e67e22}
@@ -130,10 +134,10 @@ h1{font-size:18px;padding:14px 20px 4px}
 /* 属于同一个【群攻】并行帧的日志行：左侧竖线标出来，一眼看出这几条是同时结算的 */
 .battle-log .par{border-left:3px solid #d0453c;padding-left:6px;margin-left:2px;background:#fdf4f3}
 .vs-label{text-align:center;font-size:13px;color:var(--muted);letter-spacing:6px;margin:2px 0}
-.battle-layout{display:flex;gap:16px;align-items:flex-start}
-.battle-left{flex:1;min-width:520px}
-.battle-right{width:360px}
-@media(max-width:1200px){.battle-layout{flex-direction:column}.battle-right{width:100%}}
+.battle-layout{display:flex;gap:18px;align-items:flex-start;max-width:1400px;margin:0 auto;padding:0 20px}
+.battle-left{flex:1;min-width:0}
+.battle-right{width:400px;flex-shrink:0}
+@media(max-width:1200px){.battle-layout{flex-direction:column}.battle-right{width:100%;flex-shrink:1}}
 .round-badge{text-align:center;font-size:13px;font-weight:bold;color:var(--accent);padding:4px}
 
 /* ============ 技能 ============ */
@@ -186,20 +190,20 @@ h1{font-size:18px;padding:14px 20px 4px}
 
 /* ===== 角色仓库 ===== */
 .roster-layout{display:flex;gap:14px;align-items:flex-start}
-.roster-list{width:300px;max-height:680px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--card)}
-.roster-item{padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;cursor:pointer;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:9px}
+.roster-list{width:340px;max-height:760px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:#fff}
+.roster-item{padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:5px;cursor:pointer;background:#fff;display:flex;justify-content:space-between;align-items:center;gap:11px}
 /* 列表头像：有 portrait 用立绘缩略图，没有用首字色块 */
-.ri-avatar{width:46px;height:46px;border-radius:9px;object-fit:cover;object-position:top center;flex-shrink:0;border:1px solid var(--border);background:#fff}
-.ri-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:bold}
+.ri-avatar{width:62px;height:62px;border-radius:11px;object-fit:cover;object-position:top center;flex-shrink:0;border:1px solid var(--border);background:#fff}
+.ri-avatar-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;font-weight:bold}
 .roster-item:hover{border-color:var(--accent)}
 .roster-item.selected{border:2px solid var(--accent);background:#f0f2fb}
-.roster-item .ri-name{font-weight:bold;font-size:13px}
-.roster-item .ri-meta{font-size:10px;color:var(--muted)}
+.roster-item .ri-name{font-weight:bold;font-size:14px}
+.roster-item .ri-meta{font-size:11px;color:var(--muted)}
 .roster-item .ri-tags{display:flex;gap:4px;align-items:center;margin:3px 0}
-.roster-detail{flex:1;min-width:520px}
-/* 详情大立绘：头部左侧 */
-.rd-portrait{width:170px;height:170px;border-radius:14px;object-fit:cover;object-position:top center;flex-shrink:0;border:2px solid var(--border);background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.12)}
-.rd-portrait-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:56px;font-weight:bold}
+.roster-detail{flex:1;min-width:0}
+/* 详情大立绘：头部左侧，180px 方图能让立绘细节真正看清（用户要求"调大"） */
+.rd-portrait{width:240px;height:240px;border-radius:18px;object-fit:cover;object-position:top center;flex-shrink:0;border:2px solid var(--border);background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.rd-portrait-fallback{display:flex;align-items:center;justify-content:center;color:#fff;font-size:78px;font-weight:bold}
 .roster-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
 /* 【星神】装配面板 */
 .sg-wrap{background:#fbfcff;border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px}

@@ -164,6 +164,48 @@ let SKILLS = [
     {type:"Revive",value:1.0,target:"Self",chain:1},
     {type:"HealPct",value:1.0,target:"Self"}
   ]}
+  // ============ 修尔（暗 · 速度：禁疗 + 大招暴击 + 抽气势）============
+  ,
+  {id:"atk_schurr",name:"是非之咬",triggerType:"NormalAttack",tags:[
+    // 平a：单体 200%，并给当前目标挂【禁疗】1 回合（下一次回血/复活无效）
+    {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
+    {type:"HealBlock",value:1,duration:1,target:"CurrentTarget"}
+  ]},
+  {id:"ult_schurr",name:"因果裁决",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：单体 600%，暴击率额外 +40%，再挂【禁疗】2 回合
+    {type:"DamageMultiplier",value:6.0,target:"CurrentTarget"},
+    {type:"CritBoost",value:0.4,target:"Self"},
+    {type:"HealBlock",value:2,duration:2,target:"CurrentTarget"}
+  ]},
+  {id:"pas_schurr_pursuit",name:"是非之魔",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    // 开场：敌方同横排所有单位气势 -20
+    {type:"EnergyDown",value:-20,target:"EnemySameRow"}
+  ]}
+  // ============ 莉莉丝（草 · 平衡/英雄：嘲讽 + 群体按单体结算 + 复活阵亡 + 大地赐福）============
+  ,
+  {id:"atk_lilith",name:"蔓生之息",triggerType:"NormalAttack",tags:[
+    // 平a：单体 200%（无禁疗，禁疗是修尔的专属）
+    {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"}
+  ]},
+  {id:"ult_lilith",name:"圣灵庇佑",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：单体 300% + 给自己挂【嘲讽】-1（永久，触发后本回合就在嘲讽）
+    // + 【圣灵庇佑】被动：死后随机复活一个阵亡角色（含自己）满血在场
+    {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
+    {type:"Taunt",value:-1,duration:-1,target:"Self"},
+    {type:"Revive",value:1.0,target:"FallenAllyRandom",once:true}
+  ]}
+  // 莉莉丝的【英雄技】：大地赐福。草属性 ≥2 时：
+  //   1. 全队血上限 +20%（战前结算，永久）
+  //   2. 草属性角色挂【气势免疫】（在引擎里让 EnergyDown 对其无效）
+  //   3. 草属性角色每次放大招后立刻回满气势（在引擎里 executeSkill 末尾检测）
+  // 效果（1）走 MaxHpUp，（2）走新的 EnergyImmunity 标志，
+  // （3）放在引擎里检测「招式结束 + 草属性 + aura 已激活」三件套
+  ,
+  {id:"hero_lilith_gift",name:"大地赐福",triggerType:"HeroSkill",tags:[
+    {type:"AuraCondition",value:2,elements:["Grass"]},
+    {type:"MaxHpUp",value:0.2,target:"AllyAll"},
+    {type:"EnergyImmunity",value:1,target:"AllyGrass"}
+  ]}
 ];
 
 // 旧数据迁移：眩晕 / 冰冻 统一为【控制】（通用词条合并后的兼容处理）
@@ -249,6 +291,14 @@ let CHARS = [
   // 「时间之子」每个大回合开场结算一次——死了就满血复活（附带一个出手回合），
   // 活着就回满血。不攒复活储备，靠的是"每回合必然满血在场"。血薄但极难打死。
   {id:"char_noah",name:"诺亚",charClass:"attack",maxHp:3100,atk:880,def:190,spd:115,element:"Light",normalAttackId:"atk_noah",ultimateId:"ult_noah",passiveIds:["pas_noah_time"],startingEnergy:50,portrait:"assets/img/char_noah.webp"}
+  ,
+  // 修尔：暗系速度。靠【禁疗】让敌方核心回血/复活位一回合沉默，
+  // 大招自带暴击加成 + 双回合禁疗；被动"是非之魔"开场把敌方同横排气势拉低 20。
+  {id:"char_schurr",name:"修尔",charClass:"speed",maxHp:2900,atk:720,def:170,spd:135,element:"Dark",normalAttackId:"atk_schurr",ultimateId:"ult_schurr",passiveIds:["pas_schurr_pursuit"],startingEnergy:50,portrait:"assets/img/char_schurr.webp"}
+  ,
+  // 莉莉丝：草系平衡 + 英雄。大招后自带嘲讽 + 死亡复活阵亡角色；
+  // 英雄技"大地赐福"：草属性≥2时全队血 +20%、草属性免疫气势降低、草属性大招后回满气势。
+  {id:"char_lilith",name:"莉莉丝",charClass:"balance",specialClass:"hero",maxHp:4200,atk:560,def:360,spd:100,element:"Grass",normalAttackId:"atk_lilith",ultimateId:"ult_lilith",heroSkillId:"hero_lilith_gift",passiveIds:[],startingEnergy:50,portrait:"assets/img/char_lilith.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -414,6 +464,12 @@ const TAG_META = {
     desc:"直接增加气势值。气势到 100 就会自动放大招，而且气势越高大招伤害越高（175 气势开大 = 1.75 倍），所以充能词条的实际收益比看上去更大。"},
   EnergyDrain:   {n:"气势吸取",  s:"势吸", c:"#9b59b6", cat:"fn", v:"吸取气势点数", tgt:1,
     desc:"降低目标气势值，把它的大招往后拖。秩序龙尊的龙魂反击就带这个效果。"},
+  EnergyDown:    {n:"气势降低",  s:"势↓", c:"#9b59b6", cat:"fn", v:"降低气势点数（可负）", tgt:1,
+    desc:"直接扣气势。负数（-20）就当扣 20 点用；与【气势吸取】的区别——吸取走「目标给到施法者」（用于龙魂反击），降低就是单纯地把目标气势扣下去，不转移。"},
+  EnergyImmunity:{n:"气势免疫",  s:"势免", c:"#9b59b6", cat:"fn", v:"1=开启免疫", tgt:1,
+    desc:"给目标打上「免疫【气势降低】」标记。本身不挡吸取、不挡加气势，只挡「让气势变低」的效果（EnergyDown）。莉莉丝的【大地赐福】会让满足条件的所有草属性角色带上这个标记。"},
+  HealBlock:     {n:"禁疗",      s:"禁疗", c:"#e67e22", cat:"st", v:"持续回合", tgt:1,
+    desc:"禁止目标在接下来若干回合内被回血或复活——【治疗】/【比例治疗】直接落空，【复活】也无效（带 useCharge 的复活会先扣一层【复活储备】当抵消，然后再判定 HealBlock）。敌方核心治疗/复活位吃一口就废一回合。"},
   DodgeBoost:    {n:"闪避加成",  s:"闪↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,
     desc:"在基础闪避之上追加闪避概率，用于堆到高闪避的生存流派。"},
   CritBoost:     {n:"暴击加成",  s:"暴↑",  c:"#27ae60", cat:"fn", v:"提升比例", tgt:0,

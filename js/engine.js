@@ -25,6 +25,7 @@ const TAG_TO_STATUS = {
   AtkDown:"AtkDown", DefDown:"DefDown", SpdDown:"SpdDown", Taunt:"Taunt",
   AtkUp:"AtkUp", DefUp:"DefUp", SpdUp:"SpdUp", Shield:"Shield",
   DamageReduction:"DamageReduction", Stealth:"Stealth",
+  HealBlock:"HealBlock",
 };
 function tagToStatus(tag){ return TAG_TO_STATUS[tag.type] || null; }
 
@@ -95,6 +96,9 @@ class BattleUnit{
     // 【生命上限】累计加成比例（0.2 = +20%）。永久、不可驱散、不可净化，
     // 直接乘在 maxHp 上，所以按最大生命结算的效果（灼烧）也会跟着变高。
     this.maxHpBonusPct = 0;
+    // 【气势免疫】标记（hero aura 一次性给的）：被置 true 后，所有【气势降低】命中该单位
+    // 都直接落空。目前只有莉莉丝英雄技"大地赐福"会给草属性加这个标记。
+    this.energyImmunity = false;
     // 标记某些被动已触发过（once:true 复活/同类一次性触发）
     this._triggeredOnce = new Set();
     const byId = id => skills.find(s=>s.id===id) || null;
@@ -332,6 +336,13 @@ class BattleGrid{
     // 全场只剩隐身单位：退化为打血最少的
     return this.lowestHpUnit(this.targetableUnits());
   }
+  /**
+   * 当前格子里有没有【嘲讽】单位（活人）。嘲讽的语义是「敌方只能打自己」，
+   * 所以任何指向这个格子的攻击都得把目标改成嘲讽者本人（不管原本想打后排还是群攻）。
+   */
+  taunter(){
+    return this.aliveUnits().find(u=>u.hasStatus("Taunt")) || null;
+  }
 }
 
 function elementMultiplier(atk, def){
@@ -380,12 +391,14 @@ const STATUS_NAME = {
   SpdUp:"速度增益", SpdDown:"速度减益", Taunt:"嘲讽", Shield:"护盾",
   DamageReduction:"减伤", DodgeBoost:"闪避加成", CritBoost:"暴击加成",
   VitalityOnHurt:"【生息不止】",
+  HealBlock:"【禁疗】",
 };
 const STATUS_SHORT = {
   Control:"控", Stealth:"隐", Poison:"毒", Burn:"烧", Bleed:"血",
   AtkUp:"攻↑", AtkDown:"攻↓", DefUp:"防↑", DefDown:"防↓", SpdUp:"速↑", SpdDown:"速↓",
   Taunt:"嘲", DamageReduction:"减", DodgeBoost:"闪↑", CritBoost:"暴↑",
   VitalityOnHurt:"生息",
+  HealBlock:"禁疗",
 };
 function statusShort(s){
   if(STATUS_SHORT[s.type]) return STATUS_SHORT[s.type];
@@ -790,10 +803,24 @@ class BattleController{
         case "Lifesteal": lifestealPct=tag.value; break;
         case "EnergyDrain": energyDrain=tag.value; break;
         case "Stun": case "Freeze": case "Control": case "Poison": case "Burn": case "Bleed":
-        case "AtkDown": case "DefDown": case "SpdDown": case "Taunt":
+        case "AtkDown": case "DefDown": case "SpdDown":
+        case "HealBlock":
           onHitDebuffs.push(tag); break;
+        // 【嘲讽】按设计意图就是「施法者吸引火力」，落点永远是 caster 自己。
+        // 旧实现把它归到 onHitDebuffs 会贴到被攻击的目标脸上（打自己一巴掌给对方挂嘲讽），
+        // 这里按"自增益"路径走（_applySelfBuff 内部会按 tag.target=Self 解析回施法者）。
+        case "Taunt":
+          selfBuffs.push(tag); break;
         case "AtkUp": case "DefUp": case "SpdUp": case "Shield": case "DamageReduction":
           selfBuffs.push(tag); break;
+        // 【暴击/闪避加成】是"本次技能"性的临时累加：直接抬高 caster.bonus*Chance，
+        // **不入 status 系统**。如果走 status 会有两个坑：
+        //   (1) duration=0 立刻过期，加不上去；
+        //   (2) 走 refreshTypes 的 Math.max 逻辑会拿旧值跟新值取大，
+        // 两次连击叠加反而只算最大那次。
+        // 这里只用 processTurnEnd 自然清零即可（每回合结束 bonus*Chance 归零）。
+        case "CritBoost":  caster.bonusCritChance += (tag.value||0); break;
+        case "DodgeBoost": caster.bonusDodgeChance += (tag.value||0); break;
         // 【隐身】必须排在 Revive 之后应用：Revive 会把 statusEffects 清空，
         // 放在 selfBuffs 里会被复活顺手清掉，所以归到 supportTags 里按声明顺序执行。
         case "Heal": case "Revive": case "Cleanse": case "Dispel": case "EnergyGain": case "Stealth":
@@ -803,6 +830,14 @@ class BattleController{
         // 【连携】给目标一个立刻出手的回合——它可能跟在【复活】后面（诺亚「被复活就出动」），
         // 所以一起进 supportTags，靠声明顺序保证「先复活、再连携」。
         case "HealPct": case "ReviveCharge": case "VitalityOnHurt": case "Chain":
+          supportTags.push(tag); break;
+        // 【气势降低】即时扣目标气势（不在 status 系统里，就是一次效果）。
+        // 负 value 是常用形态（如修尔"是非之魔"开场敌方同横排 -20）。
+        // 草属性单位在大地赐福激活时免疫此效果（见 _execSupport 的 EnergyImmunity 分支）。
+        case "EnergyDown":
+        // 【气势免疫】标记（布尔型）：hero aura 给的「整场免疫气势降低」buff，
+        // 单独 case 处理，给单位打上 energyImmunity 标志供 EnergyDown 跳过
+        case "EnergyImmunity":
           supportTags.push(tag); break;
         // 资源型词条（龙魂）：不参与普通管线，在 _execResourceTags 中处理
         case "DragonSoulInit":
@@ -819,6 +854,17 @@ class BattleController{
     }
     for(const b of selfBuffs) this._applySelfBuff(caster, b);
     for(const s of supportTags) this._execSupport(caster, s, skill);
+    // 英雄光环"大地赐福"激活时：草属性角色每次放大招后回满气势。
+    // 判定条件：caster 是草属性 + 大招 + 大地赐福激活（energyImmunity 是 aura 留下的标志）。
+    // 必须放在 selfBuffs/supportTags 之后，否则被【气势吸取】先抽走再回满会变成"白吸"。
+    if(skill.triggerType==="Ultimate" && caster.data.element==="Grass" && caster.energyImmunity){
+      const before = caster.currentEnergy;
+      caster.currentEnergy = caster.maxEnergy;
+      if(caster.currentEnergy > before){
+        this.addEvent("EnergyGain", caster, null, caster.currentEnergy - before,
+          `  ${caster.data.name} 【大地赐福】释放大招后回满气势（${Math.round(before)} → ${Math.round(caster.currentEnergy)}）`);
+      }
+    }
   }
   _execDamage(caster, dmgHits, trueDmgHits, comboCount, critChance, critMult,
               piercePct, splashPct, followUpChance, onHitDebuffs, lifestealPct, energyDrain, multiTargetCount){
@@ -1097,6 +1143,16 @@ class BattleController{
     return actual;
   }
   _resolveTargets(caster, targetType, atkGrid, defGrid){
+    // 【嘲讽】统一拦截：defGrid 有【嘲讽】活人时，所有"指向敌方"的目标都强制改成嘲讽者本人。
+    // 群体技能（EnemyAll/EnemyFrontRow/群攻）打到嘲讽者也只算他一个——按用户语义
+    // 「群体攻击按照对单体倍率来计算伤害而不是把群体的所有倍率累加」。
+    // 这里先把「指向敌方」的 targetType 列出来，Self/Ally/FallenAlly 等不拦。
+    const enemyTargets = ["CurrentTarget","EnemyBehindTarget","EnemyLowestHp","EnemyLowestPower","EnemyHighestHp",
+      "EnemyAll","AllEnemies","EnemyFrontRow","EnemyMiddleRow","EnemyBackRow","EnemyAdjacent","EnemyRandom"];
+    if(enemyTargets.includes(targetType)){
+      const t = defGrid.taunter();
+      if(t) return [t];
+    }
     switch(targetType){
       case "CurrentTarget": { const row=Math.trunc(caster.gridPosition/3); const t=defGrid.pickFrontTarget(row); return t?[t]:[]; }
       case "EnemyBehindTarget": {
@@ -1157,6 +1213,13 @@ class BattleController{
       case "AllyAttack":  return atkGrid.aliveUnits().filter(u=>u.data.charClass==="attack");
       case "AllySpeed":   return atkGrid.aliveUnits().filter(u=>u.data.charClass==="speed");
       case "AllyBalance": return atkGrid.aliveUnits().filter(u=>u.data.charClass==="balance");
+      // 按元素筛己方（英雄技"大地赐福"对草属性加 buff 用）
+      case "AllyGrass":   return atkGrid.aliveUnits().filter(u=>u.data.element==="Grass");
+      // 「敌方同横排」：caster 所在行（pos/3）对应到 defGrid 同行所有活人
+      case "EnemySameRow": {
+        const row = Math.trunc(caster.gridPosition/3);
+        return defGrid.aliveUnits().filter(u=>Math.trunc(u.gridPosition/3)===row);
+      }
       case "AllAll": return [...atkGrid.aliveUnits(), ...defGrid.targetableUnits()];
       default: return [];
     }
@@ -1249,6 +1312,11 @@ class BattleController{
       case "Heal":
         for(const t of this._resolveTargets(caster, tag.target||"CurrentTarget", atkGrid, defGrid)){
           if(!t.isAlive) continue;
+          // 【禁疗】拦截：被禁疗目标回血直接落空（按用户要求，下次无法回血/复活）
+          if(t.hasStatus("HealBlock")){
+            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 处于【禁疗】，治疗无效`);
+            continue;
+          }
           const h = t.heal(Math.trunc(tag.value));
           if(h>0) this.addEvent("Heal", caster, t, h, `  ${t.data.name} 被治疗 ${h} HP`);
         }
@@ -1273,6 +1341,24 @@ class BattleController{
               : tag.target==="FallenAllyRandom"
                 ? fallen[Math.floor(this.rng()*fallen.length)]   // 随机捞一个，抽的是阵亡池
                 : fallen[0];
+          }
+        }
+        if(!rt) break;
+        // 【禁疗】拦截：被复活的目标身上挂着 HealBlock 时，
+        //   - 复活来自 useCharge（自己有储备）→ 扣 1 层储备抵消掉这次禁疗，移除该状态；
+        //   - 否则 → 复活整条作废，回落空。
+        // 这里"花一次复活抵消"的代价是消耗 reserve，不是把整条 HealBlock 清掉，
+        // 避免「禁疗挂 2 回合 → 一次复活就把状态洗掉」的副作用。
+        if(rt.hasStatus("HealBlock")){
+          if(tag.useCharge && (caster.reviveCharges||0) > 0){
+            caster.reviveCharges -= 1;
+            const idx = rt.statusEffects.findIndex(s=>s.type==="HealBlock");
+            if(idx>=0) rt.statusEffects.splice(idx,1);
+            this.addEvent("Info", caster, rt, 0,
+              `  ${rt.data.name} 处于【禁疗】，花 1 次【复活储备】抵消（剩余 ${caster.reviveCharges}）`);
+          } else {
+            this.addEvent("Info", caster, rt, 0, `  ${rt.data.name} 处于【禁疗】，复活无效`);
+            break;
           }
         }
         if(rt){
@@ -1357,6 +1443,11 @@ class BattleController{
       case "HealPct":
         for(const t of this._resolveTargets(caster, tag.target||"Self", atkGrid, defGrid)){
           if(!t.isAlive) continue;
+          // 【禁疗】拦截：被禁疗目标按比例回血也直接落空
+          if(t.hasStatus("HealBlock")){
+            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 处于【禁疗】，比例治疗无效`);
+            continue;
+          }
           const h = t.heal(Math.trunc(t.maxHp * (tag.value||0)));
           if(h>0) this.addEvent("Heal", caster, t, h,
             `  ${t.data.name} 回复 ${h} HP（${Math.round((tag.value||0)*100)}% 最大生命）`);
@@ -1394,6 +1485,35 @@ class BattleController{
           t.addStatus("VitalityOnHurt", tag.value||0, tag.duration!=null?tag.duration:-1, caster, {hits});
           this.addEvent("StatusApplied", caster, t, 0,
             `  ${t.data.name} 获得【生息不止】：受击回复 ${Math.round((tag.value||0)*100)}% 生命，满 ${hits} 次给同排攻击最高的队友【连携】`);
+        }
+        break;
+      }
+      // 【气势降低】：直接扣目标气势。可负 value 表示"扣 N 点"（修尔"是非之魔"开场给敌方同横排 -20）。
+      // 被【气势免疫】（草属性 + 大地赐福激活）的目标整条跳过。
+      case "EnergyDown": {
+        for(const t of this._resolveTargets(caster, tag.target||"CurrentTarget", atkGrid, defGrid)){
+          if(!t.isAlive) continue;
+          if(t.energyImmunity){
+            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 免疫【气势降低】`);
+            continue;
+          }
+          const before = t.currentEnergy;
+          t.currentEnergy = Math.max(0, before + (tag.value||0));
+          const delta = t.currentEnergy - before;
+          if(delta !== 0){
+            this.addEvent("EnergyGain", caster, t, delta,
+              `  ${t.data.name} 气势 ${delta>=0?"+":""}${Math.round(delta)}（当前 ${Math.round(t.currentEnergy)}）`);
+          }
+        }
+        break;
+      }
+      // 【气势免疫】：标记（不带数值堆叠），给单位打 energyImmunity=true，
+      // 后续 EnergyDown 走到该单位时直接跳过。
+      case "EnergyImmunity": {
+        for(const t of this._resolveTargets(caster, tag.target||"AllyAll", atkGrid, defGrid)){
+          if(!t.isAlive) continue;
+          t.energyImmunity = true;
+          this.addEvent("Info", caster, t, 0, `  ${t.data.name} 获得【气势免疫】（免疫气势降低）`);
         }
         break;
       }
