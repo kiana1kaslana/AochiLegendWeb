@@ -112,6 +112,8 @@ class BattleUnit{
   this.spirited = false;
   // 通灵变身给的 ATK 加成倍率（1.0 = 不变；1.6 = 通灵后 +60% ATK）
   this.atkMult = 1;
+  // 【防御成长】累乘倍率（DefMult 词条，龙炎每大回合 +0.3；1.0 = 不变）
+  this.defMult = 1;
     // 标记某些被动已触发过（once:true 复活/同类一次性触发）
     this._triggeredOnce = new Set();
     const byId = id => skills.find(s=>s.id===id) || null;
@@ -177,7 +179,7 @@ class BattleUnit{
   // 【攻击星神】的百分比加成走 starAtkPct：和攻↑/攻↓同一层相加，但不占状态位
   // atkMult 是通灵变身后的固定倍率（1.6），叠在最后一层，不受减益影响
   get effAtk(){ return this.stats.atk * (1 + this._mod("AtkUp") - this._mod("AtkDown") + (this.starAtkPct||0)) * (this.atkMult||1); }
-  get effDef(){ return this.stats.def * (1 + this._mod("DefUp") - this._mod("DefDown")); }
+  get effDef(){ return this.stats.def * (1 + this._mod("DefUp") - this._mod("DefDown")) * (this.defMult||1); }
   get effSpd(){ return this.stats.spd * (1 + this._mod("SpdUp") - this._mod("SpdDown")); }
   get totalShield(){ return this._sum("Shield"); }
   get totalDr(){ return Math.min(0.8, this._sum("DamageReduction")); }
@@ -938,6 +940,8 @@ class BattleController{
         // 【连携】给目标一个立刻出手的回合——它可能跟在【复活】后面（诺亚「被复活就出动」），
         // 所以一起进 supportTags，靠声明顺序保证「先复活、再连携」。
         case "HealPct": case "ReviveCharge": case "VitalityOnHurt": case "Chain":
+        // 【防御成长】：defMult 累乘叠加（和刷新取最大的 DefUp 不同），龙炎龙威用
+        case "DefMult":
           supportTags.push(tag); break;
         // 【气势降低】即时扣目标气势（不在 status 系统里，就是一次效果）。
         // 负 value 是常用形态（如修尔"是非之魔"开场敌方同横排 -20）。
@@ -1527,9 +1531,23 @@ class BattleController{
     if(!targets.length) targets = [caster];
     for(const t of targets){
       if(!t.isAlive) continue;
-      t.addStatus(seType, tag.value||0, tag.duration, caster);
+      // 【嘲讽】覆盖规则（用户定稿）：同一队同时只能有一个嘲讽——新嘲讽生效，
+      // 旧嘲讽**彻底失效**（直接从旧嘲讽者身上移除，不是被数值压过）。
+      if(seType==="Taunt"){
+        for(const mate of atkGrid.aliveUnits()){
+          if(mate===t || !mate.hasStatus("Taunt")) continue;
+          mate.statusEffects = mate.statusEffects.filter(s=>s.type!=="Taunt");
+          this.addEvent("Info", caster, mate, 0,
+            `  ${t.data.name} 的【嘲讽】覆盖了 ${mate.data.name} 的旧嘲讽（旧嘲讽彻底失效）`);
+        }
+      }
+      // Shield 支持 pct 写法：按目标当前最大生命折算盾值（龙炎「100% 生命值的盾」）
+      const val = (seType==="Shield" && tag.pct!=null)
+        ? Math.trunc(t.maxHp * tag.pct)
+        : (tag.value||0);
+      t.addStatus(seType, val, tag.duration, caster);
       this.addEvent("StatusApplied", caster, t, 0,
-        `  ${t.data.name} 获得 ${names[tag.type]||tag.type}（${tag.duration==null?"永久":tag.duration+"回合"}）`);
+        `  ${t.data.name} 获得 ${names[tag.type]||tag.type}${seType==="Shield"?`（${val} 点）`:""}（${tag.duration==null?"永久":tag.duration+"回合"}）`);
     }
   }
   /** 资源型词条（龙魂）：在技能执行结束时一并结算 */
@@ -1763,6 +1781,17 @@ class BattleController{
           t.addStatus("VitalityOnHurt", tag.value||0, tag.duration!=null?tag.duration:-1, caster, {hits});
           this.addEvent("StatusApplied", caster, t, 0,
             `  ${t.data.name} 获得【生息不止】：受击回复 ${Math.round((tag.value||0)*100)}% 生命，满 ${hits} 次给同排攻击最高的队友【连携】`);
+        }
+        break;
+      }
+      // 【防御成长】：defMult 永久累乘叠加（+0.3/次 → 1.0 → 1.3 → 1.6 …）
+      case "DefMult": {
+        for(const t of this._resolveTargets(caster, tag.target||"Self", atkGrid, defGrid)){
+          if(!t.isAlive) continue;
+          const before = t.effDef;
+          t.defMult = (t.defMult||1) + (tag.value||0);
+          this.addEvent("StatusApplied", caster, t, 0,
+            `  ${t.data.name} 防御永久提升 ${Math.round((tag.value||0)*100)}%（${Math.round(before)} → ${Math.round(t.effDef)}）`);
         }
         break;
       }

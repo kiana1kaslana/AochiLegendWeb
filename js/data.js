@@ -246,6 +246,30 @@ let SKILLS = [
   {id:"pas_noya_stellar",name:"星月同辉",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     {type:"EnergyDrainImmunity"}
   ]}
+  // ============ 龙炎（火 · 平衡：护盾坦克 + 毁灭伤害爆发）============
+  ,
+  {id:"atk_longyan",name:"炎龙重击",triggerType:"NormalAttack",tags:[
+    // 平a：单体 400% + 给自己加 40% 最大生命的盾（持续 3 个大回合）
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"Shield",pct:0.4,target:"Self",duration:3}
+  ]},
+  {id:"ult_longyan",name:"龙皇霸焰",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：单体 400% + 100% 最大生命的盾 + 【嘲讽】（新嘲讽覆盖旧嘲讽），
+    // 最后对当前血量最低的敌人补一发 500% 【毁灭伤害】（无视防御/护盾/暴击）
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"Shield",pct:1.0,target:"Self",duration:3},
+    {type:"Taunt",value:-1,duration:-1,target:"Self"},
+    {type:"DestructionDamage",value:5.0,target:"EnemyLowestHp"}
+  ]},
+  {id:"pas_longyan_king",name:"力量之王",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    // 受伤降低 30%（永久减伤，与其它减伤叠加、总上限 80%）
+    {type:"DamageReduction",value:0.3,target:"Self",duration:-1}
+  ]},
+  {id:"pas_longyan_growth",name:"力量之王·龙威",triggerType:"OnRoundStart",passiveTriggerChance:1.0,tags:[
+    // 每个大回合开始：生命上限 +30%（涨上限同步补血，可无限叠）+ 防御 +30%（defMult 累乘）
+    {type:"MaxHpUp",value:0.3,target:"Self"},
+    {type:"DefMult",value:0.3,target:"Self"}
+  ]}
   // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
@@ -351,6 +375,9 @@ let CHARS = [
   // 其他属性出手不给点。被动【星月同辉】完全免疫气势降低——放完大招气势不归零；
   // 且气势**无上限**（infiniteEnergy），开大还会额外 +50 气势，越打越多、大招越放越疼。
   {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",spiritSkillName:"星月降临",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,spiritGain:"lightdark",infiniteEnergy:true,portrait:"assets/img/char_noya.webp"}
+  // ============ 龙炎（火 · 平衡：护盾坦克 + 毁灭伤害爆发）============
+  ,
+  {id:"char_longyan",name:"龙炎",charClass:"balance",maxHp:4800,atk:850,def:280,spd:95,element:"Fire",normalAttackId:"atk_longyan",ultimateId:"ult_longyan",passiveIds:["pas_longyan_king","pas_longyan_growth"],startingEnergy:50}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -474,8 +501,10 @@ const TAG_META = {
     desc:"【免疫】持有者可以无效化接下来 value 次**直接攻击伤害**——那几次攻击的伤害直接归零，闪避/暴击/防御/护盾全部跳过。次数型资源：不用就一直留着，用一次扣一层。唯一挡不住的是【毁灭伤害】——真实伤害走 takeDamage({true:true})，从【免疫】判定旁边绕过去，所以毒伤/灼烧/毁灭伤害照样吃满。溢出保护：闪避成功的那次攻击不算「直接命中」，不消耗免疫层数。"},
   MaxHpUp:       {n:"生命上限",  s:"生↑",  c:"#27ae60", cat:"def", v:"提升比例（0.2 = +20%）", tgt:1,
     desc:"按比例提升目标的最大生命值，并同步补上等量的当前生命（不会出现「上限涨了但血没回」）。永久生效，是英雄技/光环类效果的主力词条。加成会同时影响按最大生命比例结算的东西——比如灼烧伤害会跟着变高。"},
-  Shield:        {n:"护盾",      s:"盾",   c:"#3498db", cat:"def", v:"护盾值", tgt:1,
-    desc:"获得一层可吸收伤害的护盾。多个护盾按层依次抵扣，全部耗尽后才扣真实血量。"},
+  Shield:        {n:"护盾",      s:"盾",   c:"#3498db", cat:"def", v:"护盾值；填 pct 则按最大生命百分比", tgt:1,
+    desc:"获得一层可吸收伤害的护盾。多个护盾按层依次抵扣，全部耗尽后才扣真实血量。填 pct（0.4 = 40% 最大生命）时按目标最大生命折算盾值。"},
+  DefMult:       {n:"防御成长",  s:"防↑",  c:"#27ae60", cat:"def", v:"防御提升比例（0.3 = +30%，可叠加）", tgt:1,
+    desc:"按比例永久提升目标的防御力。和【防御增益】的区别：这个可以无限叠加（每个大回合 +30% 就实打实涨 30%），增益刷新的 DefUp 只取最高值。龙炎的力量之王·龙威用这条。"},
   DamageReduction:{n:"减伤",     s:"减",   c:"#3498db", cat:"def", v:"减伤比例（0.3=30%）", tgt:0,
     desc:"按比例削减最终受到的伤害。与防御减免是乘法叠加，是承伤角色的关键属性。"},
   Taunt:         {n:"嘲讽",      s:"嘲",   c:"#3498db", cat:"def", v:"持续回合", tgt:0,
