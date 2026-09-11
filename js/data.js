@@ -271,6 +271,26 @@ let SKILLS = [
     {type:"MaxHpUp",value:0.3,target:"Self"},
     {type:"DefMult",value:0.3,target:"Self"}
   ]}
+  // ============ 正理（暗 · 速度：群攻爆发 + 高级禁疗 + 死亡成长）============
+  ,
+  {id:"atk_zhengli",name:"幽影连斩",triggerType:"NormalAttack",tags:[
+    // 平a：300% 群攻×2
+    {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
+    {type:"MultiTarget",value:2}
+  ]},
+  {id:"ult_zhengli",name:"轮回断罪",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：300% 群攻×3，所有命中对象挂【高级禁疗】（不可被复活储备抵消）；
+    // 若敌方有存活通灵师，扣其 4 点通灵点。群攻数随自身死亡次数成长（perDeath）
+    {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
+    {type:"MultiTarget",value:3,perDeath:1},
+    {type:"StrongHealBlock",value:-1,duration:-1,target:"CurrentTarget"},
+    {type:"SpiritPointDown",value:4}
+  ]},
+  {id:"pas_zhengli_revive",name:"轮回之神",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    // 开局 2 层复活储备 + 死亡成长标记（引擎按 _deathCount 给 MultiTarget 加成）
+    {type:"ReviveCharge",value:2,target:"Self"},
+    {type:"DeathsScale",value:1,target:"Self"}
+  ]}
   // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
@@ -379,6 +399,9 @@ let CHARS = [
   // ============ 龙炎（火 · 平衡：护盾坦克 + 毁灭伤害爆发）============
   ,
   {id:"char_longyan",name:"龙炎",charClass:"balance",maxHp:4800,atk:850,def:280,spd:95,element:"Fire",normalAttackId:"atk_longyan",ultimateId:"ult_longyan",passiveIds:["pas_longyan_king","pas_longyan_growth"],startingEnergy:50,portrait:"assets/img/char_longyan.webp"}
+  // ============ 正理（暗 · 速度：轮回之神，越死越强）============
+  ,
+  {id:"char_zhengli",name:"正理",charClass:"speed",maxHp:2950,atk:730,def:165,spd:138,element:"Dark",normalAttackId:"atk_zhengli",ultimateId:"ult_zhengli",passiveIds:["pas_zhengli_revive"],startingEnergy:50,portrait:"assets/img/char_zhengli.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -575,6 +598,12 @@ const TAG_META = {
   // 英雄技专用：不满足条件的技能整条不生效（判定在 executeSkill 最开头，连技能名都不会打进日志）
   AuraCondition: {n:"英雄条件",  s:"英条", c:"#c9a227", cat:"own", v:"需要的同属性队友数量", tgt:0,
     desc:"光环条件的门槛：检查己阵（含自己）中元素属于 elements 列表的角色数量，达到 value 个才放行。不满足时整条技能直接作废——不是少打一点伤害，是连技能都不放。写在英雄技里就是「这套阵容能不能吃到这个英雄光环」的开关。"},
+  StrongHealBlock:{n:"高级禁疗", s:"高禁", c:"#8E44AD", cat:"st", v:"持续回合（-1 = 永久）", tgt:1,
+    desc:"禁止一切回血与复活效果。和【禁疗】的区别：**无法用【复活储备】抵消**——带着它死亡就是真死。只随持有者被驱散或死亡清场而消失。"},
+  SpiritPointDown:{n:"通灵压制", s:"通灵-", c:"#7D3C98", cat:"fn", v:"扣除的通灵点数", tgt:1,
+    desc:"若敌方场上有存活的通灵师，扣除其 value 点通灵点（最低扣到 0）。敌方没有通灵师时整条落空。"},
+  DeathsScale:{n:"轮回印记", s:"轮回", c:"#5D6D7E", cat:"own", v:"每次死亡增加的群攻数", tgt:0,
+    desc:"标记词条：持有者每死亡过一次，其大招的【群攻】目标数 +value（配合 MultiTarget 的 perDeath 生效）。本身不产生任何结算。"},
 };
 function tagName(t){ return (TAG_META[t] && TAG_META[t].n) || t; }
 // 词条分类元信息（用于词条表分组、chip 配色）

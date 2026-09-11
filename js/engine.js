@@ -26,6 +26,7 @@ const TAG_TO_STATUS = {
   AtkUp:"AtkUp", DefUp:"DefUp", SpdUp:"SpdUp", Shield:"Shield",
   DamageReduction:"DamageReduction", Stealth:"Stealth",
   HealBlock:"HealBlock",
+  StrongHealBlock:"StrongHealBlock",
 };
 function tagToStatus(tag){ return TAG_TO_STATUS[tag.type] || null; }
 
@@ -212,6 +213,7 @@ class BattleUnit{
     let damage = Math.max(1, Math.trunc(rawDamage));
     if(damage >= this.currentHp){
       damage = this.currentHp; this.currentHp = 0; this.isAlive = false;
+      this._deathCount = (this._deathCount||0) + 1;   // 正理「轮回」成长：每死亡过一次 +1
     } else this.currentHp -= damage;
     return damage;
   }
@@ -229,8 +231,8 @@ class BattleUnit{
     }
     // 【禁疗】是永久标记型，重复获得不叠加（修尔平 a 命中后再吃大招也只算 1 条）。
     // 标志本身没有 duration，所以也走不到下面 processTurnEnd 的递减逻辑。
-    if(type==="HealBlock"){
-      const ex = this.statusEffects.find(s=>s.type==="HealBlock");
+    if(type==="HealBlock" || type==="StrongHealBlock"){
+      const ex = this.statusEffects.find(s=>s.type===type);
       if(ex) return;
       this.statusEffects.push(new StatusEffect(type,value,duration,source,meta));
       return;
@@ -875,7 +877,10 @@ class BattleController{
           trueDmgHits.push({mult:tag.value, target:tag.target||"CurrentTarget"});
           break;
         // 【群攻】*n：把上面的伤害倍率随机打给敌方 n 个目标（只影响 DamageMultiplier 那组）
-        case "MultiTarget": multiTargetCount=Math.max(1,Math.trunc(tag.value||1)); break;
+        case "MultiTarget":
+          // perDeath：持有者每死亡过一次，群攻数 +N（正理「轮回」）
+          multiTargetCount=Math.max(1,Math.trunc(tag.value||1) + (tag.perDeath||0)*Math.trunc(caster._deathCount||0));
+          break;
         case "Combo": comboCount=Math.max(1,Math.trunc(tag.value||1)); break;
         // 【Repeat】：让"上一个 dmgHit"对同一个 target 多打几下。语义是「连续释放 N 次」，
         // 比如昆仑平 a：[{DamageMultiplier 200%}, {Repeat 2}] → 当前目标挨 2 下 200%。
@@ -914,7 +919,7 @@ class BattleController{
         case "EnergyDrain": energyDrain=tag.value; break;
         case "Stun": case "Freeze": case "Control": case "Poison": case "Burn": case "Bleed":
         case "AtkDown": case "DefDown": case "SpdDown":
-        case "HealBlock":
+        case "HealBlock": case "StrongHealBlock":
           onHitDebuffs.push(tag); break;
         // 【嘲讽】按设计意图就是「施法者吸引火力」，落点永远是 caster 自己。
         // 旧实现把它归到 onHitDebuffs 会贴到被攻击的目标脸上（打自己一巴掌给对方挂嘲讽），
@@ -1605,12 +1610,29 @@ class BattleController{
     const atkGrid = caster.isPlayerSide ? this.playerGrid : this.enemyGrid;
     const defGrid = caster.isPlayerSide ? this.enemyGrid : this.playerGrid;
     switch(tag.type){
+      case "SpiritPointDown": {
+        // 【通灵压制】：敌方每个存活通灵师扣 value 点通灵点（最低 0）
+        const foes = defGrid.aliveUnits().filter(u=>u.isSpiritist());
+        if(!foes.length){
+          this.addEvent("Info", caster, null, 0, `  【通灵压制】敌方没有通灵师，落空`);
+          break;
+        }
+        for(const sp of foes){
+          const before = sp.spiritPoints||0;
+          sp.spiritPoints = Math.max(0, before - Math.trunc(tag.value||0));
+          const delta = before - sp.spiritPoints;
+          this.addEvent("Info", caster, sp, sp.spiritPoints,
+            `  【通灵压制】${sp.data.name} 通灵点 -${delta}（${sp.spiritPoints}/${sp.spiritThreshold}）`);
+        }
+        break;
+      }
       case "Heal":
         for(const t of this._resolveTargets(caster, tag.target||"CurrentTarget", atkGrid, defGrid)){
           if(!t.isAlive) continue;
-          // 【禁疗】拦截：被禁疗目标回血直接落空（按用户要求，下次无法回血/复活）
-          if(t.hasStatus("HealBlock")){
-            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 处于【禁疗】，治疗无效`);
+          // 【禁疗】/【高级禁疗】拦截：被禁疗目标回血直接落空
+          if(t.hasStatus("HealBlock") || t.hasStatus("StrongHealBlock")){
+            const strong = t.hasStatus("StrongHealBlock");
+            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 处于【${strong ? "高级禁疗" : "禁疗"}】，治疗无效`);
             continue;
           }
           const h = t.heal(Math.trunc(tag.value));
@@ -1646,6 +1668,11 @@ class BattleController{
         //                  下次死亡被复活时依然无效）
         // 用 consumeCharge 标记避免下方 if(rt) 复活分支再扣一次储备。
         let consumeCharge = tag.useCharge;
+        // 【高级禁疗】：复活直接失败，储备不能抵消、也不消耗
+        if(rt.hasStatus("StrongHealBlock")){
+          this.addEvent("Info", caster, rt, 0, `  ${rt.data.name} 处于【高级禁疗】，复活无效（无法被储备抵消）`);
+          break;
+        }
         if(rt.hasStatus("HealBlock")){
           if(consumeCharge && (caster.reviveCharges||0) > 0){
             caster.reviveCharges -= 1;
