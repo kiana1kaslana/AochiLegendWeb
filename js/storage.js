@@ -41,6 +41,23 @@ function backfillMissing(base, codeDefaults){
   return rescued;
 }
 
+/**
+ * 创界破军词条补装：老存档（第二十一轮词条化之前）的昆仑平a/大招 tags 数组里
+ * 没有 RepeatBoost 词条。backfillMissing 只补「顶层缺失键」，不会深进 tags 数组，
+ * 所以这里单独检测：缺词条就按代码默认补回去。
+ */
+function ensureKunlunRepeatBoost(){
+  let fixed = 0;
+  for(const sid of ["atk_kunlun","ult_kunlun"]){
+    const t = SKILLS.find(s=>s.id===sid);
+    if(t && !(t.tags||[]).some(x=>x.type==="RepeatBoost")){
+      t.tags.push({type:"RepeatBoost",value:1,condition:"Outnumbered",source:"创界破军"});
+      fixed++;
+    }
+  }
+  return fixed;
+}
+
 const DataIO = {
   KEY: "aochi_save_v1",
 
@@ -91,7 +108,8 @@ const DataIO = {
     {
       const n1 = backfillMissing(CHARS, _codeChars);
       const n2 = backfillMissing(SKILLS, _codeSkills);
-      if(n1 + n2 > 0){
+      const n3 = ensureKunlunRepeatBoost();   // 昆仑创界破军词条（tags 数组内部，backfill 够不着）
+      if(n1 + n2 + n3 > 0){
         try{ this.save(); }catch(_){ /* headless 无 localStorage 时忽略 */ }
       }
     }

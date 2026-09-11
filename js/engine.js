@@ -1029,19 +1029,29 @@ class BattleController{
       // 非群攻（单体/连击/Repeat）不加组，仍是一个目标一条一条播。
       const isGroupAttack = multiTargetCount>0;
       if(isGroupAttack) this._evGroup = ++this._groupSeq;
-      for(const [target, info] of seen){
-        // 施法者可能在上一段里被反击打死了（死人不能继续出手），目标也可能已经死了
-        // （例如群攻前面几段先把它打死、后面的溅射仍指向它）——两种情况都直接跳过
+      for(const entry of seen){
         if(!caster.isAlive) break;
-        if(!target.isAlive) continue;
+        // 【连攻转火】：目标在中途被击倒时，剩余击数不收招，自动转火下一个存活敌人
+        // （嘲讽者优先，其次按站位取前排）——「四连击秒四个脆皮」的连击爽感就靠这个。
+        let target = entry[0];
+        const info = entry[1];
         // 【Repeat】同一个 target 打 repeat 次（昆仑平 a / 大招的「连续释放 N 次」）。
         // splash / 真伤只在最后一次打完后再结算，避免连击 3 下溅射 3 次把数据搞乱。
         // 每一击都完整报一次技能特效（第 1 击的报幕由 executeSkill 开头的 SkillUsed 承担），
         // 连攻打出去就是「技能名徽章 + 命中抖动 + 飘字」逐击刷屏的连续出手感。
+        // 目标中途倒下 → 转火下一个（连攻转火），没人可打才收招。
         const repeat = info.repeat||1;
         for(let r=0; r<repeat; r++){
           if(!caster.isAlive) break;
-          if(!target.isAlive) break;
+          if(!target || !target.isAlive){
+            const tn = defenderGrid.taunter();
+            const pool = defenderGrid.targetableUnits().filter(u=>u.isAlive);
+            const nxt = (tn && tn.isAlive) ? tn : pool[0];
+            if(!nxt) break;   // 敌方全灭，剩余击数作废
+            this.addEvent("Info", caster, nxt, 0,
+              `  【连攻】目标已倒下，转火 ${nxt.data.name}`);
+            target = nxt;
+          }
           if(r>0) this.addEvent("SkillUsed", caster, null, 0,
             `  【连攻】第 ${r+1}/${repeat} 击 · ${this._currentSkillName||""}`,
             {hitBadge: this._currentSkillName});
