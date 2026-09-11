@@ -169,13 +169,13 @@ let SKILLS = [
   {id:"atk_schurr",name:"是非之咬",triggerType:"NormalAttack",tags:[
     // 平a：单体 200%，并给当前目标挂【禁疗】（永久，直到目标复活时抵消或下次死亡后解除）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
-    {type:"HealBlock",target:"CurrentTarget"}
+    {type:"StrongHealBlock",value:-1,duration:-1,target:"CurrentTarget"}
   ]},
   {id:"ult_schurr",name:"因果裁决",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 600%，暴击率额外 +40%，再挂永久【禁疗】
     {type:"DamageMultiplier",value:6.0,target:"CurrentTarget"},
     {type:"CritBoost",value:0.4,target:"Self"},
-    {type:"HealBlock",target:"CurrentTarget"}
+    {type:"StrongHealBlock",value:-1,duration:-1,target:"CurrentTarget"}
   ]},
   {id:"pas_schurr_pursuit",name:"是非之魔",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 开场：敌方同横排所有单位气势 -20
@@ -291,6 +291,11 @@ let SKILLS = [
     {type:"ReviveCharge",value:2,target:"Self"},
     {type:"DeathsScale",value:1,target:"Self"}
   ]}
+  ,
+  {id:"pas_zhengli_cycle",name:"轮回之神·归",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
+    // 致命伤时扣 1 层储备满血站回来（死亡本身已被 _deathCount 记账，群攻数 +1）
+    {type:"Revive",value:1.0,target:"Self",useCharge:true}
+  ]}
   // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
@@ -401,7 +406,7 @@ let CHARS = [
   {id:"char_longyan",name:"龙炎",charClass:"balance",maxHp:4800,atk:850,def:280,spd:95,element:"Fire",normalAttackId:"atk_longyan",ultimateId:"ult_longyan",passiveIds:["pas_longyan_king","pas_longyan_growth"],startingEnergy:50,portrait:"assets/img/char_longyan.webp"}
   // ============ 正理（暗 · 速度：轮回之神，越死越强）============
   ,
-  {id:"char_zhengli",name:"正理",charClass:"speed",maxHp:2950,atk:730,def:165,spd:138,element:"Dark",normalAttackId:"atk_zhengli",ultimateId:"ult_zhengli",passiveIds:["pas_zhengli_revive"],startingEnergy:50,portrait:"assets/img/char_zhengli.webp"}
+  {id:"char_zhengli",name:"正理",charClass:"speed",maxHp:2950,atk:730,def:165,spd:138,element:"Dark",normalAttackId:"atk_zhengli",ultimateId:"ult_zhengli",passiveIds:["pas_zhengli_revive","pas_zhengli_cycle"],startingEnergy:50,portrait:"assets/img/char_zhengli.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。

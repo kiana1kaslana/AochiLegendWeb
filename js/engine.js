@@ -1770,8 +1770,9 @@ class BattleController{
         for(const t of this._resolveTargets(caster, tag.target||"Self", atkGrid, defGrid)){
           if(!t.isAlive) continue;
           // 【禁疗】拦截：被禁疗目标按比例回血也直接落空
-          if(t.hasStatus("HealBlock")){
-            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 处于【禁疗】，比例治疗无效`);
+          if(t.hasStatus("HealBlock") || t.hasStatus("StrongHealBlock")){
+            const strong = t.hasStatus("StrongHealBlock");
+            this.addEvent("Info", caster, t, 0, `  ${t.data.name} 处于【${strong ? "高级禁疗" : "禁疗"}】，比例治疗无效`);
             continue;
           }
           const h = t.heal(Math.trunc(t.maxHp * (tag.value||0)));
