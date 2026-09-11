@@ -841,7 +841,6 @@ class BattleController{
         for(const p of unit.passives||[]){
           if(p.triggerType !== "OnBattleStart") continue;
           if(this.rng() > (p.passiveTriggerChance??1)) continue;
-          this.addEvent("Passive", unit, null, 0, `${unit.data.name} 触发开场被动：${p.name}`);
           this.executeSkill(unit, p, PASSIVE_EXEC);
         }
       }
@@ -1670,8 +1669,7 @@ class BattleController{
         let consumeCharge = tag.useCharge;
         // 【高级禁疗】：复活直接失败，储备不能抵消、也不消耗
         if(rt.hasStatus("StrongHealBlock")){
-          this.addEvent("Info", caster, rt, 0, `  ${rt.data.name} 处于【高级禁疗】，复活无效（无法被储备抵消）`);
-          break;
+          break;   // 复活失败静默（用户要求：不播报字幕/特效）
         }
         if(rt.hasStatus("HealBlock")){
           if(consumeCharge && (caster.reviveCharges||0) > 0){
@@ -1682,9 +1680,7 @@ class BattleController{
             this.addEvent("Info", caster, rt, 0,
               `  ${rt.data.name} 处于【禁疗】，花 1 次【复活储备】抵消（剩余 ${caster.reviveCharges}）`);
           } else {
-            this.addEvent("Info", caster, rt, 0,
-              `  ${rt.data.name} 处于【禁疗】，复活无效（永久，只有【复活储备】能抵消）`);
-            break;
+            break;   // 复活失败静默（用户要求：不播报字幕/特效）
           }
         }
         if(rt){
