@@ -419,8 +419,10 @@ function energyMultiplier(energy){ return Math.max(1, energy / ULT_ENERGY_COST);
 
 // ===== 暴击系统 =====
 // 所有角色自带基础暴击率 20%、暴击伤害 150%，在这之上再叠技能词条与装备
-const BASE_CRIT_CHANCE = 0.20;
+const BASE_CRIT_CHANCE = 0.50;   // 全角色基础暴击率 50%（用户定稿）
 const BASE_CRIT_MULT   = 1.5;
+const BASE_DODGE_CHANCE = 0.20;  // 全角色基础闪避率 20%
+const BASE_BLOCK_CHANCE = 0.30;  // 全角色基础格挡率 30%（减伤按 starBlockValue 50%）
 // 装备预留位：unit.gearCritChance / gearCritMult / gearStartEnergy / gearMaxEnergy
 //   以后加"加暴击率的装备"就写 gearCritChance，"开局满气势的装备"就写 gearStartEnergy
 
@@ -1301,7 +1303,7 @@ class BattleController{
     // 【毁灭伤害】/ 真实伤害的识别方式：只有 trueDmg 有值、普通倍率为 0
     const isTrueDamage = dmgMult===0 && trueDmg>0;
     // 1. 闪避（含被动与【闪避星神】）
-    let dodgeChance = target.bonusDodgeChance + (target.starDodgeChance||0);
+    let dodgeChance = BASE_DODGE_CHANCE + target.bonusDodgeChance + (target.starDodgeChance||0);
     for(const p of target.passives){
       if(p.triggerType!=="OnHit") continue;
       if(this.rng() > (p.passiveTriggerChance??1)) continue;
@@ -1353,9 +1355,10 @@ class BattleController{
           if(t.type==="Block" && this.rng()<t.chance){ raw *= (1-t.value); blocked = true; }
         }
       }
-      // 6.5 【格挡星神】的格挡：和被动格挡各自独立判一次，触发时按 starBlockValue 减伤
-      //     （星神固定 50%）。这一段同样在 isTrueDamage 之外，所以【毁灭伤害】照样打满。
-      if(target.starBlockChance>0 && this.rng()<target.starBlockChance){
+      // 6.5 基础格挡 30% + 【格挡星神】叠加（合并一次判定，减伤 50%）。
+      //     这一段同样在 isTrueDamage 之外，所以【毁灭伤害】照样打满。
+      const baseBlock = BASE_BLOCK_CHANCE + (target.starBlockChance||0);
+      if(baseBlock>0 && this.rng()<baseBlock){
         raw *= (1 - (target.starBlockValue||0.5));
         blocked = true;
       }
