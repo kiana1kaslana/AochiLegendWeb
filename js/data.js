@@ -345,12 +345,12 @@ let CHARS = [
   ,
   // 昆仑：草属性 / 攻击型 / 通灵师。数值定位"半肉输出"：比修尔肉、比修尔高攻，
   // 通灵点满 7 之后 HP×2 / ATK×1.6，整场变成主 T + 主输出。
-  {id:"char_kunlun",name:"昆仑",charClass:"attack",specialClass:"spirit",maxHp:3800,atk:780,def:160,spd:110,element:"Grass",normalAttackId:"atk_kunlun",ultimateId:"ult_kunlun",passiveIds:["pas_kunlun_pursuit"],startingEnergy:50,portrait:"assets/img/char_kunlun.webp"},
+  {id:"char_kunlun",name:"昆仑",charClass:"attack",specialClass:"spirit",spiritSkillName:"破军降世",maxHp:3800,atk:780,def:160,spd:110,element:"Grass",normalAttackId:"atk_kunlun",ultimateId:"ult_kunlun",passiveIds:["pas_kunlun_pursuit"],startingEnergy:50,portrait:"assets/img/char_kunlun.webp"},
   // 诺雅：光属性 / 平衡型 / 通灵师。数值定位"脆皮爆发"：高攻低防，满 8 触发变身。
   // 通灵规则：只有光/暗属性的队友**主动攻击出手**才给她 +2 通灵点（固定值，不乘攻击次数），
   // 其他属性出手不给点。被动【星月同辉】完全免疫气势降低——放完大招气势不归零；
   // 且气势**无上限**（infiniteEnergy），开大还会额外 +50 气势，越打越多、大招越放越疼。
-  {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,spiritGain:"lightdark",infiniteEnergy:true,portrait:"assets/img/char_noya.webp"}
+  {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",spiritSkillName:"星月降临",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,spiritGain:"lightdark",infiniteEnergy:true,portrait:"assets/img/char_noya.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。

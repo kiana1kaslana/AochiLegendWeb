@@ -410,9 +410,18 @@ const Replay = {
     } else if(ev.type==="SkillUsed" && ev.actor){
       const a = this._cell(ev.actor);
       if(a){
-        // 普通技能显示技能名（截前4字避免溢出）
-        const sn = (ev.text.match(/使用了 (.+)/) || [, "技能"])[1];
+        // 连攻逐击报幕带 hitBadge（技能名），首击报幕从文本里提取
+        const sn = ev.hitBadge || (ev.text.match(/使用了 (.+)/) || [, "技能"])[1];
         this._showBadge(a, sn.slice(0,4), "skill", 600);
+      }
+    }
+    // 通灵变身：金紫大徽章（通灵技名）+ 格子高亮闪烁，等连携出手接上
+    if(ev.type==="SpiritTransform" && ev.actor){
+      const a = this._cell(ev.actor);
+      if(a){
+        a.classList.add("spirit-flash"); setTimeout(()=>a.classList.remove("spirit-flash"), 1400);
+        this._showBadge(a, "通灵·"+(ev.spiritName||"变身"), "spirit", 1500);
+        this._float(a, "通灵!", "#f39c12", true);
       }
     }
     // 条件连攻触发（创界破军等）：施法者头顶弹来源徽章

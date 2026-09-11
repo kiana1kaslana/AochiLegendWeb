@@ -119,6 +119,11 @@ h1{font-size:18px;padding:14px 20px 4px}
 .bcell .act-badge.crit{background:linear-gradient(135deg,#e67e22,#c0392b);font-size:15px;padding:3px 12px;animation:badgePop .3s,critFlash .5s}
 /* 条件连攻触发（创界破军）：紫色徽章，和龙魂/毁灭伤害的紫呼应 */
 .bcell .act-badge.boost{background:linear-gradient(135deg,#6c3483,#a569bd);font-size:12px}
+/* 通灵变身：金紫大徽章，比必杀更隆重——这是扭转战局的时刻 */
+.bcell .act-badge.spirit{background:linear-gradient(135deg,#f39c12,#8e44ad);font-size:16px;padding:4px 14px;letter-spacing:2px;animation:badgePop .4s,ultGlow .7s ease-in-out infinite alternate}
+/* 通灵变身：格子金光高亮闪烁 */
+.bcell.spirit-flash{animation:spiritGlow 1.4s}
+@keyframes spiritGlow{0%,100%{box-shadow:none}25%,75%{box-shadow:0 0 0 4px #f39c12,0 0 26px 8px rgba(243,156,18,.8)}}
 /* 暴击命中：格子白闪 + 更猛的抖动 */
 .bcell.crit-hit{animation:critShake .45s}
 @keyframes critShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px) scale(1.02)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}

@@ -854,6 +854,7 @@ class BattleController{
   /* ============ 技能执行（与 C# SkillExecutor 对应）============ */
   executeSkill(caster, skill, opts){
     this.addEvent("SkillUsed", caster, null, 0, `${caster.data.name} 使用了 ${skill.name}`);
+    this._currentSkillName = skill.name;   // 【连攻】逐击报幕要用（_execDamage 里拿不到 skill 对象）
     // dmgMult/targetType 现在支持多个（同一技能多个 DamageMultiplier tag 可选不同目标）
     // 数组中每项：{mult, target, repeat}（repeat 由【Repeat】词条填入，>1 表示同 target 多打几下）
     const dmgHits = [];           // {mult, target, repeat}
@@ -1035,10 +1036,15 @@ class BattleController{
         if(!target.isAlive) continue;
         // 【Repeat】同一个 target 打 repeat 次（昆仑平 a / 大招的「连续释放 N 次」）。
         // splash / 真伤只在最后一次打完后再结算，避免连击 3 下溅射 3 次把数据搞乱。
+        // 每一击都完整报一次技能特效（第 1 击的报幕由 executeSkill 开头的 SkillUsed 承担），
+        // 连攻打出去就是「技能名徽章 + 命中抖动 + 飘字」逐击刷屏的连续出手感。
         const repeat = info.repeat||1;
         for(let r=0; r<repeat; r++){
           if(!caster.isAlive) break;
           if(!target.isAlive) break;
+          if(r>0) this.addEvent("SkillUsed", caster, null, 0,
+            `  【连攻】第 ${r+1}/${repeat} 击 · ${this._currentSkillName||""}`,
+            {hitBadge: this._currentSkillName});
           this._processAttack(caster, target, info.mult, 0, critChance, critMult,
             piercePct, onHitDebuffs, lifestealPct, energyDrain);
         }
@@ -1238,6 +1244,11 @@ class BattleController{
     // 扣阈值（保留溢出），先扣再变身，方便下面判断是不是首次
     const th = unit.spiritThreshold;
     unit.spiritPoints = Math.max(0, (unit.spiritPoints||0) - th);
+    // 通灵技名（昆仑「破军降世」/ 诺雅「星月降临」）：报幕 + UI 大特效用
+    const spiritName = unit.data.spiritSkillName || "通灵变身";
+    this.addEvent("SpiritTransform", unit, null, 0,
+      `【通灵】${unit.data.name} 发动通灵技「${spiritName}」！`,
+      {spiritName});
     if(!unit.spirited){
       unit.spirited = true;
       // HP 上限 ×2：maxHp 是派生 getter（stats.maxHp × (1 + maxHpBonusPct)），
