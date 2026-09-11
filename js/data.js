@@ -377,7 +377,7 @@ let CHARS = [
   {id:"char_noya",name:"诺雅",charClass:"balance",specialClass:"spirit",spiritSkillName:"星月降临",maxHp:3000,atk:820,def:180,spd:120,element:"Light",normalAttackId:"atk_noya",ultimateId:"ult_noya",passiveIds:["pas_noya_stellar"],startingEnergy:50,spiritThreshold:8,spiritGain:"lightdark",infiniteEnergy:true,portrait:"assets/img/char_noya.webp"}
   // ============ 龙炎（火 · 平衡：护盾坦克 + 毁灭伤害爆发）============
   ,
-  {id:"char_longyan",name:"龙炎",charClass:"balance",maxHp:4800,atk:850,def:280,spd:95,element:"Fire",normalAttackId:"atk_longyan",ultimateId:"ult_longyan",passiveIds:["pas_longyan_king","pas_longyan_growth"],startingEnergy:50}
+  {id:"char_longyan",name:"龙炎",charClass:"balance",maxHp:4800,atk:850,def:280,spd:95,element:"Fire",normalAttackId:"atk_longyan",ultimateId:"ult_longyan",passiveIds:["pas_longyan_king","pas_longyan_growth"],startingEnergy:50,portrait:"assets/img/char_longyan.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
