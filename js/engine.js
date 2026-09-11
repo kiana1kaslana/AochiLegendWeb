@@ -1090,8 +1090,11 @@ class BattleController{
       //     不会出现"毁灭伤害打在刚被群攻打死的尸体上"。
       // （伤害事件由 _processAttack 自己发，这里不再补一条，免得同一次伤害记两遍）
       for(const d of trueDmgHits){
-        const tlist = this._resolveTargets(caster, d.target, attackerGrid, defenderGrid)
-                        .filter(t=>t.isAlive);
+        // 【毁灭伤害】无视隐身：EnemyLowestHp 直接在存活单位（含隐身）里挑血最低的
+        const tlist = (d.target==="EnemyLowestHp"
+          ? [defenderGrid.lowestHpUnit(defenderGrid.aliveUnits())]
+          : this._resolveTargets(caster, d.target, attackerGrid, defenderGrid)
+        ).filter(t=>t && t.isAlive);
         if(!tlist.length){
           this.addEvent("Info", caster, null, 0, `  【毁灭伤害】敌方已无存活单位，落空`);
           continue;
