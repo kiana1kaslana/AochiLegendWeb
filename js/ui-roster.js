@@ -130,6 +130,16 @@ const RosterUI = {
     let sgEnergyBonus = 0;
     for(const k of sgSlots) if(k==="energy") sgEnergyBonus += (STAR_GODS.energy.apply.energy||0);
     const sgEnergyTotal = Math.min(MAX_ENERGY, sgBaseEnergy + sgEnergyBonus);
+    // 战斗属性面板用的：暴击/格挡来自「角色基础 + 星神加成」。基础暴击 20%/150%，
+    // 暴击星神 +30% 暴击率，格挡星神 +20% 格挡率（格挡减伤固定 50%）
+    let sgCrit = 0, sgBlock = 0;
+    for(const k of sgSlots){
+      if(k==="crit")  sgCrit  += (STAR_GODS.crit.apply.critChance||0);
+      if(k==="block") sgBlock += (STAR_GODS.block.apply.blockChance||0);
+    }
+    const critRate  = Math.round((0.20 + sgCrit)*100);
+    const critDmg   = Math.round(1.5*100);
+    const blockRate = Math.round(sgBlock*100);
     const sgLegend = STAR_GOD_ORDER.map(k=>{
       const g = STAR_GODS[k];
       return `<div class="sg-legend-item" style="border-left-color:${g.c}">
@@ -181,6 +191,9 @@ const RosterUI = {
         <div class="stat-box"><div class="sb-label">攻击</div><div class="sb-val">${s.atk.toLocaleString()}</div><div class="sb-base">基 ${c.atk}</div></div>
         <div class="stat-box"><div class="sb-label">防御</div><div class="sb-val">${s.def.toLocaleString()}</div><div class="sb-base">基 ${c.def}</div></div>
         <div class="stat-box"><div class="sb-label">速度</div><div class="sb-val">${s.spd}</div><div class="sb-base">基 ${c.spd}</div></div>
+        <div class="stat-box"><div class="sb-label">暴击率</div><div class="sb-val">${critRate}%</div><div class="sb-base">基 20%${sgCrit?` ＋星神 ${Math.round(sgCrit*100)}%`:""}</div></div>
+        <div class="stat-box"><div class="sb-label">暴击伤害</div><div class="sb-val">${critDmg}%</div><div class="sb-base">暴击时伤害 ×1.5</div></div>
+        <div class="stat-box"><div class="sb-label">格挡率</div><div class="sb-val">${blockRate}%</div><div class="sb-base">${sgBlock?"格挡时减伤 50%":"装格挡星神获得"}</div></div>
       </div>
       <h3 style="margin:12px 0 4px 0;font-size:13px">⭐ 星神装配
         <span style="color:var(--muted);font-size:11px;font-weight:normal">每个角色 ${MAX_STAR_GODS} 个槽位，开局自动生效，不需要触发</span></h3>

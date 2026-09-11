@@ -352,8 +352,14 @@ const Replay = {
         t.classList.add("targeted"); setTimeout(()=>t.classList.remove("targeted"),400);
         // 【毁灭伤害】走紫色飘字：一眼区分"能挡的伤害"和"挡不住的伤害"
         const isTrue = ev.isTrueDamage || /【毁灭伤害】/.test(ev.text||"");
-        const color = isTrue ? "#8e44ad" : (ev.type==="CritDamage" ? "#c0392b" : "#e74c3c");
-        this._float(t, "-"+ev.value, color, ev.type==="CritDamage" || isTrue);
+        const isCrit = ev.type==="CritDamage";
+        const color = isTrue ? "#8e44ad" : (isCrit ? "#e67e22" : "#e74c3c");
+        this._float(t, "-"+ev.value, color, isCrit || isTrue);
+        // 暴击：金色「暴击！」徽章 + 加重的红闪抖动，跟普通命中一眼区分开
+        if(isCrit){
+          this._showBadge(t, "暴击！", "crit", 800);
+          t.classList.add("crit-hit"); setTimeout(()=>t.classList.remove("crit-hit"), 500);
+        }
         if(isTrue) this._showBadge(t, "毁灭", "true", 700);
       }
     }
@@ -409,6 +415,14 @@ const Replay = {
         this._showBadge(a, sn.slice(0,4), "skill", 600);
       }
     }
+    // 条件连攻触发（创界破军等）：施法者头顶弹来源徽章
+    if(ev.note==="RepeatBoost" && ev.actor){
+      const a = this._cell(ev.actor);
+      if(a){
+        this._showBadge(a, ev.noteText||"创界之力", "boost", 1000);
+        this._float(a, "连击+1", "#8e44ad");
+      }
+    }
   },
   _updateRoundBadge(){
     let round = 0; for(let i=this.idx;i>=0;i--){ if(this.events[i].round!=null){round=this.events[i].round;break;} }
@@ -430,6 +444,10 @@ const Replay = {
     f.textContent = text;
     f.style.color = color;
     if(big) f.style.fontSize = "24px";
+    // 横向随机偏移：连攻/多段攻击连续飘字时错开位置，不然每一击都叠在同一点，
+    // 看起来像"只打了一下"
+    f.style.left = (42 + Math.random()*16) + "%";
+    f.style.top = (16 + Math.random()*10) + "%";
     cell.appendChild(f);
     setTimeout(()=>f.remove(), 1000);
   },

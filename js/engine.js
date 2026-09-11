@@ -468,6 +468,11 @@ class BattleController{
     // 连击不加组，仍然逐击播放——这就是【群攻】与【连击】在表现上的区别。
     this._evGroup = null;
     this._groupSeq = 0;
+    // 【连携】排队：连携不再"当场插队出手"（那会把当前角色的连击/多段攻击拦腰打断，
+    // 看起来像被对面抢断），而是先入队，等当前出手的角色**整套回合结束后**再依次结算。
+    // 连携执行期间新触发的连携也排队，同样等前一个连携出手完整结束。
+    this._pendingChains = [];
+    this._chainDraining = false;
     this._bindUnitLogging = this._bindUnitLogging.bind(this);
   }
   _bindUnitLogging(unit){
@@ -672,6 +677,9 @@ class BattleController{
       // 8. 回合结束：状态回合数在这里递减（控制按「次数」生效，不能被提前扣掉）
       if(unit.isAlive) unit.processTurnEnd();
     }
+    // 9. 连携结算：本回合（含连击额外回合）期间排队的连携，现在才出手——
+    //    不会把当前角色的多段攻击拦腰打断，也不会"抢断"对手正在进行的出手。
+    this._drainPendingChains();
   }
   /** 队友出手后，遍历 caster 一方活体的 OnAllyActed 被动并尝试触发 */
   _processAllyActedPassives(actor){
@@ -888,8 +896,10 @@ class BattleController{
           if(ok){
             for(const d of dmgHits) d.repeat = (d.repeat||1) + (tag.value||1);
             const src = tag.source || "条件连攻";
+            // extra.note 给 UI 用：触发时在施法者头顶弹「创界之力」徽章
             this.addEvent("Info", caster, null, 0,
-              `  【${src}】条件命中（${cond}），本次连击次数 +${tag.value||1}`);
+              `  【${src}】条件命中（${cond}），本次连击次数 +${tag.value||1}`,
+              {note:"RepeatBoost", noteText:src});
           }
           break;
         }
@@ -1144,8 +1154,28 @@ class BattleController{
   _grantChain(unit, turns){
     if(!unit || !unit.isAlive) return;
     const n = Math.max(1, Math.trunc(turns||1));
-    this.addEvent("Chain", unit, null, n, `【连携】${unit.data.name} 立刻获得 ${n} 个出手回合`);
-    this._processComboExtraTurns(unit, n);
+    this.addEvent("Chain", unit, null, n, `【连携】${unit.data.name} 获得 ${n} 个出手回合（当前出手结束后立刻执行）`);
+    this._pendingChains.push({unit, n});
+  }
+  /**
+   * 结算排队的连携。在 _processTurn 的最后调用（当前角色的本体 + 连击全部打完、
+   * 回合结束状态递减之后）。循环消化队列：连携出手期间又触发的连携（比如打了对面
+   * 阿瑞斯三下把对面队友连携出去）排到队尾，同样等这个连携完整结束。
+   */
+  _drainPendingChains(){
+    if(this._chainDraining) return;
+    this._chainDraining = true;
+    try{
+      while(this._pendingChains.length){
+        if(this._checkEnd()) break;
+        const {unit, n} = this._pendingChains.shift();
+        if(!unit || !unit.isAlive) continue;
+        this._processComboExtraTurns(unit, n);
+      }
+    } finally {
+      this._chainDraining = false;
+      this._pendingChains.length = 0;
+    }
   }
 
   /* ============ 通灵师系统 ============
