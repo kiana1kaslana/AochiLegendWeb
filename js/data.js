@@ -255,11 +255,12 @@ let SKILLS = [
   ]},
   {id:"ult_longyan",name:"龙皇霸焰",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 400% + 100% 最大生命的盾 + 【嘲讽】（新嘲讽覆盖旧嘲讽），
-    // 最后对当前血量最低的敌人补一发 500% 【毁灭伤害】（无视防御/护盾/暴击）
+    // 毁灭伤害 = 对**同一目标继续出伤**（类似继续出手，无视防御/护盾/暴击）。
+    // 注意：只有词条明确写了 target:EnemyLowestHp（无烬龙尊那种）才打血最低单位
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"Shield",pct:1.0,target:"Self",duration:3},
     {type:"Taunt",value:-1,duration:-1,target:"Self"},
-    {type:"DestructionDamage",value:5.0,target:"EnemyLowestHp"}
+    {type:"DestructionDamage",value:5.0,target:"CurrentTarget"}
   ]},
   {id:"pas_longyan_king",name:"力量之王",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 受伤降低 30%（永久减伤，与其它减伤叠加、总上限 80%）

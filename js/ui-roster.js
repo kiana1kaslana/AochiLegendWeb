@@ -80,9 +80,14 @@ const RosterUI = {
       const chips = (s.tags||[]).map(t=>{
         const m = TAG_META[t.type]; if(!m) return "";
         let extra = "";
-        if(t.value!=null && t.value!==0) extra = (t.type==="DamageMultiplier" ? t.value+"×" : String(t.value));
+        if(t.type==="Shield" && t.pct!=null){
+          // 百分比盾：显示「40%生命」，别让 duration 的 ×3 被误读成 3 倍盾
+          extra = `${Math.round(t.pct*100)}%生命`;
+        } else if(t.value!=null && t.value!==0){
+          extra = (t.type==="DamageMultiplier" ? t.value+"×" : String(t.value));
+        }
         if((t.chance??1)<1) extra += (extra?" ":"")+`${(t.chance*100)|0}%`;
-        if(t.duration) extra += (extra?" ":"")+`×${t.duration}回`;
+        if(t.duration) extra += (extra?" ":"")+`持续${t.duration}回合`;
         const tgtN = t.target && TARGET_META[t.target] ? TARGET_META[t.target].n : null;
         return tagChipHtml(t.type, extra, {targetName:tgtN});
       }).join("");
