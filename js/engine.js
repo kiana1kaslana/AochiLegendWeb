@@ -419,7 +419,7 @@ function energyMultiplier(energy){ return Math.max(1, energy / ULT_ENERGY_COST);
 
 // ===== 暴击系统 =====
 // 所有角色自带基础暴击率 20%、暴击伤害 150%，在这之上再叠技能词条与装备
-const BASE_CRIT_CHANCE = 0.50;   // 全角色基础暴击率 50%（用户定稿）
+const BASE_CRIT_CHANCE = 0.20;   // 全角色基础暴击率 20%（暴击星神每个 +30%）
 const BASE_CRIT_MULT   = 1.5;
 const BASE_DODGE_CHANCE = 0.20;  // 全角色基础闪避率 20%
 const BASE_BLOCK_CHANCE = 0.30;  // 全角色基础格挡率 30%（减伤按 starBlockValue 50%）
