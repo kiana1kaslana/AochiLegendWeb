@@ -945,6 +945,7 @@ class BattleController{
         // 【比例治疗】按最大生命回血；【复活储备】发复活次数；【生息不止】挂受击回血效果
         // 【连携】给目标一个立刻出手的回合——它可能跟在【复活】后面（诺亚「被复活就出动」），
         // 所以一起进 supportTags，靠声明顺序保证「先复活、再连携」。
+        case "DevourPower": case "SpiritDrain":
         case "HealPct": case "ReviveCharge": case "VitalityOnHurt": case "Chain":
         // 【防御成长】：defMult 累乘叠加（和刷新取最大的 DefUp 不同），龙炎龙威用
         case "DefMult":
@@ -1322,6 +1323,19 @@ class BattleController{
         `  ${target.data.name} 用【免疫】无效化了本次攻击！（剩余 ${target.immunityCharges} 层）`);
       return 0;
     }
+    // 1.8 【噬神之力】：受到攻击「之前」触发（连击每一段各自触发）。
+    //     消耗 1 层 → 获得 50% 最大生命的护盾；复活裁决放在伤害落地之后（7.6）。
+    let devourUsed = false;
+    if((target.devourStacks||0) > 0 && target.passives.some(p=>(p.tags||[]).some(t=>t.type==="DevourPower"))){
+      target.devourStacks -= 1;
+      devourUsed = true;
+      const shieldAmt = Math.trunc(target.maxHp * 0.5);
+      const sh = target.statusEffects.find(s=>s.type==="Shield");
+      if(sh) sh.value += shieldAmt;
+      else target.statusEffects.push(new StatusEffect("Shield", shieldAmt, -1, target));
+      this.addEvent("StatusApplied", caster, target, shieldAmt,
+        `  ${target.data.name} 触发【噬神之力】→ 获得 护盾（${shieldAmt} 点），剩余 ${target.devourStacks} 层`);
+    }
     // 2. 基础伤害：倍率与真实伤害倍率都乘攻击力
     //    大招再按开大那一刻的气势放大：175 气势 = ×1.75（普攻/被动固定 ×1）
     const energyMult = caster._castEnergyMult || 1;
@@ -1365,6 +1379,25 @@ class BattleController{
     }
     // 7. 造成伤害（真实伤害直接把减伤/护盾标记传给 takeDamage 跳过）
     const actual = target.takeDamage(raw, isTrueDamage ? {true:true} : undefined);
+    // 7.6 【噬神之力】复活裁决：自己被这一下打死 → 优先复活自己；否则拉回随机一名已阵亡队友
+    if(devourUsed){
+      const ownGrid = target.isPlayerSide ? this.playerGrid : this.enemyGrid;
+      if(!target.isAlive){
+        target.isAlive = true;
+        target.currentHp = Math.max(1, Math.trunc(target.maxHp*0.3));
+        this.addEvent("Revive", target, target, target.currentHp,
+          `  【噬神之力】${target.data.name} 噬己复活！恢复 ${target.currentHp} HP`);
+      } else {
+        const fallen = ownGrid.allUnits().filter(u=>!u.isAlive && u!==target);
+        if(fallen.length){
+          const r = fallen[Math.floor(this.rng()*fallen.length)];
+          r.isAlive = true;
+          r.currentHp = Math.max(1, Math.trunc(r.maxHp*0.3));
+          this.addEvent("Revive", target, r, r.currentHp,
+            `  【噬神之力】${r.data.name} 被拉回战场！恢复 ${r.currentHp} HP`);
+        }
+      }
+    }
     // 7.5 被攻击方获得气势（受击 +50）
     if(actual > 0 && target.isAlive){
       gainEnergy(target, ENERGY_HIT_GAIN);
@@ -1612,6 +1645,33 @@ class BattleController{
     const atkGrid = caster.isPlayerSide ? this.playerGrid : this.enemyGrid;
     const defGrid = caster.isPlayerSide ? this.enemyGrid : this.playerGrid;
     switch(tag.type){
+      case "DevourPower": {
+        const n = Math.trunc(tag.value||0);
+        caster.devourStacks = (caster.devourStacks||0) + n;
+        this.addEvent("Info", caster, caster, caster.devourStacks,
+          `  【噬神之力】${caster.data.name} 层数 +${n}（当前 ${caster.devourStacks}）`);
+        break;
+      }
+      case "SpiritDrain": {
+        // 己方通灵师 +value；敌方通灵师已通灵（spirited）才被吸
+        const v = Math.trunc(tag.value||0);
+        const ownSp = atkGrid.aliveUnits().find(u=>u.isSpiritist());
+        if(ownSp){
+          ownSp.spiritPoints += v;
+          this.addEvent("Info", caster, ownSp, ownSp.spiritPoints,
+            `  【噬神夺魂】${ownSp.data.name} 通灵点 +${v}（${ownSp.spiritPoints}/${ownSp.spiritThreshold}）`);
+        }
+        const foeSp = defGrid.aliveUnits().find(u=>u.isSpiritist() && u.spirited);
+        if(foeSp){
+          const before = foeSp.spiritPoints||0;
+          foeSp.spiritPoints = Math.max(0, before - v);
+          this.addEvent("Info", caster, foeSp, foeSp.spiritPoints,
+            `  【噬神夺魂】吸取 ${foeSp.data.name} 通灵点 -${before - foeSp.spiritPoints}（${foeSp.spiritPoints}/${foeSp.spiritThreshold}）`);
+        } else {
+          this.addEvent("Info", caster, null, 0, `  【噬神夺魂】敌方通灵师尚未通灵，无可吸取`);
+        }
+        break;
+      }
       case "SpiritPointDown": {
         // 【通灵压制】：敌方每个存活通灵师扣 value 点通灵点（最低 0）
         const foes = defGrid.aliveUnits().filter(u=>u.isSpiritist());

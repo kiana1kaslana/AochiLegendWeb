@@ -296,6 +296,27 @@ let SKILLS = [
     // 致命伤时扣 1 层储备满血站回来（死亡本身已被 _deathCount 记账，群攻数 +1）
     {type:"Revive",value:1.0,target:"Self",useCharge:true}
   ]}
+  // ============ 归墟·薄伽丘（水 · 肉盾：噬神之力 / 受击前触发）============
+  ,
+  {id:"atk_boccaccio",name:"沉渊击",triggerType:"NormalAttack",tags:[
+    // 平a：单体 300%
+    {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"}
+  ]},
+  {id:"ult_boccaccio",name:"归墟噬神",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：单体 600%，获得 3 层噬神之力，通灵点转移 2 点（敌方已通灵才被吸）
+    {type:"DamageMultiplier",value:6.0,target:"CurrentTarget"},
+    {type:"DevourPower",value:3},
+    {type:"SpiritDrain",value:2}
+  ]},
+  {id:"pas_boccaccio_tank",name:"归墟之躯",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    // 血量上限 +300%（涨上限同步补血）+ 50% 减伤
+    {type:"MaxHpUp",value:3.0,target:"Self"},
+    {type:"DamageReduction",value:0.5,duration:-1,target:"Self"}
+  ]},
+  {id:"pas_boccaccio_devour",name:"噬神之力",triggerType:"OnHit",passiveTriggerChance:1.0,tags:[
+    // 标记词条：引擎在受击「前」检测该标记结算噬神（层数存 devourStacks）
+    {type:"DevourPower",value:1}
+  ]}
   // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
@@ -407,6 +428,9 @@ let CHARS = [
   // ============ 正理（暗 · 速度：轮回之神，越死越强）============
   ,
   {id:"char_zhengli",name:"正理",charClass:"speed",maxHp:2950,atk:730,def:165,spd:138,element:"Dark",normalAttackId:"atk_zhengli",ultimateId:"ult_zhengli",passiveIds:["pas_zhengli_revive","pas_zhengli_cycle"],startingEnergy:50,portrait:"assets/img/char_zhengli.webp"}
+  // ============ 归墟·薄伽丘（水 · 肉盾：受击前触发的噬神之力）============
+  ,
+  {id:"char_boccaccio",name:"归墟·薄伽丘",charClass:"tank",maxHp:4400,atk:480,def:400,spd:80,element:"Water",normalAttackId:"atk_boccaccio",ultimateId:"ult_boccaccio",passiveIds:["pas_boccaccio_tank","pas_boccaccio_devour"],startingEnergy:50,portrait:"assets/img/char_boccaccio.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -609,6 +633,10 @@ const TAG_META = {
     desc:"若敌方场上有存活的通灵师，扣除其 value 点通灵点（最低扣到 0）。敌方没有通灵师时整条落空。"},
   DeathsScale:{n:"轮回印记", s:"轮回", c:"#5D6D7E", cat:"own", v:"每次死亡增加的群攻数", tgt:0,
     desc:"标记词条：持有者每死亡过一次，其大招的【群攻】目标数 +value（配合 MultiTarget 的 perDeath 生效）。本身不产生任何结算。"},
+  DevourPower:{n:"噬神之力", s:"噬神", c:"#4A90D9", cat:"own", v:"获得的层数", tgt:0,
+    desc:"归墟·薄伽丘专属。大招获得 value 层（存于 devourStacks）。受到攻击「之前」消耗 1 层：获得 50% 最大生命的护盾；若自己被这一下打死则优先复活自己，否则复活随机一名已阵亡队友（恢复 30% 生命）。连击的每一段各自触发。"},
+  SpiritDrain:{n:"噬神夺魂", s:"夺魂", c:"#2C5F8A", cat:"fn", v:"转移的通灵点数", tgt:0,
+    desc:"己方通灵师获得 value 点通灵点；敌方通灵师若已发动通灵技则被吸取 value 点，未通灵则吸不到。"},
 };
 function tagName(t){ return (TAG_META[t] && TAG_META[t].n) || t; }
 // 词条分类元信息（用于词条表分组、chip 配色）
