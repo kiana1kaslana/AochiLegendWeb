@@ -548,6 +548,7 @@ class BattleController{
       // 大回合开场被动（OnRoundStart）：在出手序计算之前结算，跟谁先手无关。
       // 诺亚的「时间之子」就挂在这里——每回合回满血 + 补一层复活储备。
       this._processRoundStartPassives();
+      this._drainPendingChains();   // 【罪裁】等回合开始连携在这里立刻结算 → 抢先出手
       if(this._checkEnd()) return this._result();
       const order = this._turnOrder();
       const seqText = order.filter(u=>u.isAlive).map(u=>`${u.isPlayerSide?"P":"E"}${u.data.name}(格${u.gridPosition})`).join(" → ");
