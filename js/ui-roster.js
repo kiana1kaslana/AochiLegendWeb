@@ -22,9 +22,10 @@ const RosterUI = {
   render(){
     const list = document.getElementById("roster-list");
     if(!list) return;
-    if(!this.selected || !CHARS.find(c=>c.id===this.selected)) this.selected = CHARS[0]?.id;
+    const visible = CHARS.filter(c=>!c.hidden);
+    if(!this.selected || !visible.find(c=>c.id===this.selected)) this.selected = visible[0]?.id;
     list.innerHTML = "";
-    for(const c of CHARS){
+    for(const c of visible){
       const el = (ELEMENTS[c.element]||{}).n || c.element || "?";
       const ec = (ELEMENTS[c.element]||{}).c || "#999";
       const lv = GROWTH_LEVELS[c.id]||50;

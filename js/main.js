@@ -7,8 +7,8 @@ try{ __loadedSave = (typeof DataIO!=="undefined" && DataIO.load) ? !!DataIO.load
 catch(e){ __loadedSave = false; }
 // 没有存档（或存档里没阵容）才填默认阵容：纯数据填位，UI 由 TeamUI.render() 完成
 if(!__loadedSave){
-  TEAMS.player.positions = ["char_light_tank","char_grass_assassin","char_fire_brave","char_fire_dps",null,"char_water_healer",null,null,null];
-  TEAMS.enemy.positions = ["char_grass_warrior","char_dark_mage","char_light_dps","char_grass_assassin",null,"char_fire_brave",null,null,null];
+  TEAMS.player.positions = ["char_kunlun","char_lilith","char_longyan","char_noya",null,"char_schurr",null,null,null];
+  TEAMS.enemy.positions = ["char_kunlun","char_lilith","char_longyan","char_noya",null,"char_schurr",null,null,null];
 }
 try{ TeamUI.render(); }catch(e){ /* headless 无 DOM 时忽略 */ }
 

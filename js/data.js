@@ -419,14 +419,14 @@ function ensureStarGods(){
 }
 
 let CHARS = [
-  {id:"char_fire_dps",name:"烈焰精灵",charClass:"attack",maxHp:3200,atk:850,def:200,spd:120,element:"Fire",normalAttackId:"atk_fire",ultimateId:"ult_fire_storm",passiveIds:["pas_counter_25"],startingEnergy:50},
-  {id:"char_water_healer",name:"水灵仙子",charClass:"balance",maxHp:2800,atk:600,def:250,spd:100,element:"Water",normalAttackId:"atk_water",ultimateId:"ult_water_heal",passiveIds:["pas_dodge_30"],startingEnergy:50},
-  {id:"char_grass_assassin",name:"草影刺客",charClass:"attack",maxHp:2600,atk:900,def:150,spd:140,element:"Grass",normalAttackId:"atk_grass",ultimateId:"ult_grass_combo",passiveIds:["pas_counter_25"],startingEnergy:50},
-  {id:"char_light_tank",name:"光辉守卫",charClass:"tank",maxHp:4500,atk:500,def:400,spd:80,element:"Light",normalAttackId:"atk_light",ultimateId:"ult_shield_wall",passiveIds:["pas_block_40","pas_immune_stun"],startingEnergy:50},
-  {id:"char_dark_mage",name:"暗影法师",charClass:"attack",maxHp:3000,atk:780,def:180,spd:110,element:"Dark",normalAttackId:"atk_dark",ultimateId:"ult_dark_assassin",passiveIds:["pas_lifesteal_turn"],startingEnergy:50},
-  {id:"char_grass_warrior",name:"翠叶战士",charClass:"tank",maxHp:3500,atk:700,def:280,spd:95,element:"Grass",normalAttackId:"atk_grass",ultimateId:"ult_aoe_slam",passiveIds:["pas_block_40"],startingEnergy:50},
-  {id:"char_light_dps",name:"光明祭司",charClass:"balance",maxHp:2900,atk:820,def:190,spd:105,element:"Light",normalAttackId:"atk_light",ultimateId:"ult_light_judgment",passiveIds:["pas_dodge_30"],startingEnergy:50},
-  {id:"char_fire_brave",name:"火焰勇者",charClass:"balance",maxHp:3800,atk:750,def:300,spd:90,element:"Fire",normalAttackId:"atk_fire",ultimateId:"ult_aoe_slam",passiveIds:["pas_revive"],startingEnergy:50}
+  {id:"char_fire_dps",hidden:true,name:"烈焰精灵",charClass:"attack",maxHp:3200,atk:850,def:200,spd:120,element:"Fire",normalAttackId:"atk_fire",ultimateId:"ult_fire_storm",passiveIds:["pas_counter_25"],startingEnergy:50},
+  {id:"char_water_healer",hidden:true,name:"水灵仙子",charClass:"balance",maxHp:2800,atk:600,def:250,spd:100,element:"Water",normalAttackId:"atk_water",ultimateId:"ult_water_heal",passiveIds:["pas_dodge_30"],startingEnergy:50},
+  {id:"char_grass_assassin",hidden:true,name:"草影刺客",charClass:"attack",maxHp:2600,atk:900,def:150,spd:140,element:"Grass",normalAttackId:"atk_grass",ultimateId:"ult_grass_combo",passiveIds:["pas_counter_25"],startingEnergy:50},
+  {id:"char_light_tank",hidden:true,name:"光辉守卫",charClass:"tank",maxHp:4500,atk:500,def:400,spd:80,element:"Light",normalAttackId:"atk_light",ultimateId:"ult_shield_wall",passiveIds:["pas_block_40","pas_immune_stun"],startingEnergy:50},
+  {id:"char_dark_mage",hidden:true,name:"暗影法师",charClass:"attack",maxHp:3000,atk:780,def:180,spd:110,element:"Dark",normalAttackId:"atk_dark",ultimateId:"ult_dark_assassin",passiveIds:["pas_lifesteal_turn"],startingEnergy:50},
+  {id:"char_grass_warrior",hidden:true,name:"翠叶战士",charClass:"tank",maxHp:3500,atk:700,def:280,spd:95,element:"Grass",normalAttackId:"atk_grass",ultimateId:"ult_aoe_slam",passiveIds:["pas_block_40"],startingEnergy:50},
+  {id:"char_light_dps",hidden:true,name:"光明祭司",charClass:"balance",maxHp:2900,atk:820,def:190,spd:105,element:"Light",normalAttackId:"atk_light",ultimateId:"ult_light_judgment",passiveIds:["pas_dodge_30"],startingEnergy:50},
+  {id:"char_fire_brave",hidden:true,name:"火焰勇者",charClass:"balance",maxHp:3800,atk:750,def:300,spd:90,element:"Fire",normalAttackId:"atk_fire",ultimateId:"ult_aoe_slam",passiveIds:["pas_revive"],startingEnergy:50}
   ,
   {id:"char_dragon_sovereign",name:"秩序龙尊",charClass:"speed",maxHp:4200,atk:920,def:260,spd:115,element:"Light",normalAttackId:"atk_dragon_sovereign",ultimateId:"ult_dragon_judgment",passiveIds:["pas_dragon_soul_init","pas_dragon_soul_passive","pas_dragon_revive"],startingEnergy:50,portrait:"assets/img/char_dragon_sovereign.webp"}
   ,

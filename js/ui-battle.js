@@ -98,7 +98,7 @@ const TeamUI = {
     // 池
     const pool = document.getElementById("char-pool");
     pool.innerHTML = "";
-    for(const c of CHARS){
+    for(const c of CHARS.filter(x=>!x.hidden)){
       const s = statsAt(c.id, GROWTH_LEVELS[c.id]||50);
       const el = ELEMENTS[c.element];
       const d = document.createElement("div");
