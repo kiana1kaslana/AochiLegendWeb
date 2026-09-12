@@ -138,12 +138,11 @@ class BattleUnit{
   getSpiritPointGain(caster, hitCount){
     if(this.data.spiritGain === "lightdark"){
       const el = caster.data.element;
-      return (el === "Light" || el === "Dark") ? 2 : 0;
+      return (el === "Light" || el === "Dark") ? hitCount * 2 : 0;   // 连击每段都触发 ×2
     }
     if(this.data.spiritGain === "fanusi"){
-      if(caster === this) return 0;   // 自己出手不给（队友出手才给）
       const el = caster.data.element;
-      return (el === "Light" || el === "Dark") ? 1 : 0;
+      return (el === "Light" || el === "Dark") ? hitCount : 0;   // 光/暗每次出手（含连击每段）+1
     }
     return hitCount;
   }

@@ -61,47 +61,45 @@ let SKILLS = [
     // 平a：敌方 + 敌方身后一位（共 2 个 DamageMultiplier tag，分别指定 target）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"DamageMultiplier",value:2.0,target:"EnemyBehindTarget"}
-  ]},
+  ],desc:"对当前目标造成 200% 伤害，并对其身后的目标造成 200% 伤害。"},
   {id:"ult_dragon_judgment",name:"龙尊圣裁",triggerType:"Ultimate",energyCost:100,tags:[
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
     {type:"DamageMultiplier",value:3.0,target:"EnemyLowestPower"},
     {type:"DragonSoulRefillOnUlt",value:3}
-  ]},
+  ],desc:"对当前目标造成 300% 伤害，对敌方战力最低者造成 300% 伤害；释放后补充 3 点龙魂。"},
   {id:"pas_dragon_soul_passive",name:"龙魂天威",triggerType:"OnAllyActed",passiveTriggerChance:1.0,tags:[
     // 任意单位出手后（含自己）：按当前龙魂数量连打，每轮消耗 1 个龙魂。
     // 伤害倍率 + 吸怒 75 都收进 DragonSoulAllyRetaliate 的实现里，不在这里拆成两个词条——
     // 拆开的话「龙魂为 0 就不该打」这条判据会漏掉，一魂没有照样能白打一发。
     {type:"DragonSoulAllyRetaliate",value:1.5}
-  ]},
+  ],desc:"任意队友出手后，若自己有龙魂则消耗 1 点，对随机敌人追加 150% 攻击并吸收 75 点气势。"},
   {id:"pas_dragon_soul_init",name:"龙魂觉醒",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     {type:"DragonSoulInit",value:1}
-  ]},
+  ],desc:"战斗开始时获得 1 点龙魂（龙魂是存着慢慢花的资源：出手一次花一个）。"},
   {id:"pas_dragon_revive",name:"真龙不死",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
     {type:"Revive",value:0.6,target:"Self",once:true}
-  ]}
-  // ============ 无烬龙尊（群攻 / 毁灭伤害 / 隐身的样例角色）============
+  ],desc:"首次被击败时原地复活并进入【隐身】（全队只剩自己时隐身失效，可被攻击）。"}  // ============ 无烬龙尊（群攻 / 毁灭伤害 / 隐身的样例角色）============
   ,
   {id:"atk_dragon_emberless",name:"烬火斩",triggerType:"NormalAttack",tags:[
     // 平a：单体 400%
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"}
-  ]},
+  ],desc:"对当前目标造成 400% 伤害。"},
   {id:"ult_dragon_emberless",name:"无烬裁决",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：400% 打【群攻】*4（随机 4 个敌人），再追加一发 800% 攻击力的【毁灭伤害】打血最少的
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"MultiTarget",value:4},
     {type:"DestructionDamage",value:8.0,target:"EnemyLowestHp"}
-  ]},
+  ],desc:"对当前目标 400%，随机命中 4 名敌人；随后对血量最低的敌人造成 800% 毁灭伤害（无视防御、护盾、暴击与格挡）。"},
   {id:"pas_emberless_revive",name:"无烬不灭",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
     // 致命伤死亡时：复活一滴血 + 进入【隐身】（永久，队友全灭后失效）
     {type:"Revive",value:0,target:"Self",once:true},
     {type:"Stealth",value:1,duration:-1,target:"Self"}
-  ]}
-  // ============ 造物以撒（【英雄】特殊职业 + 【免疫】 + 【复活】队友 + 连击的样例）============
+  ],desc:"首次被击败时以极低生命原地复活，并进入【隐身】。隐身期间不会被选为攻击目标。"}  // ============ 造物以撒（【英雄】特殊职业 + 【免疫】 + 【复活】队友 + 连击的样例）============
   ,
   {id:"atk_isaac",name:"暗蚀之触",triggerType:"NormalAttack",tags:[
     // 平a：单体 100%
     {type:"DamageMultiplier",value:1.0,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 100% 伤害。"},
   {id:"ult_isaac",name:"造物·伪生",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：200% 单体，打两轮（连击*2）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
@@ -110,7 +108,7 @@ let SKILLS = [
     {type:"Revive",value:0.5,target:"FallenAllyRandom"},
     // 给自己挂一层【免疫】，挡下一次直接攻击。放最后：Revive 会清空目标状态，但那清的是被复活的人
     {type:"Immunity",value:1,target:"Self"}
-  ]},
+  ],desc:"对当前目标 200% 伤害并追加 2 段连击；随机复活一名阵亡队友（恢复 50% 生命），并给自己 1 层【免疫】（无效化下一次直接攻击）。"},
   {id:"hero_creation_force",name:"造物之力",triggerType:"HeroSkill",tags:[
     // 英雄条件：己阵光/暗属性角色 ≥ 2 个，否则整条英雄技作废
     {type:"AuraCondition",value:2,elements:["Light","Dark"]},
@@ -124,33 +122,32 @@ let SKILLS = [
   {id:"atk_ares",name:"藤蔓重击",triggerType:"NormalAttack",tags:[
     // 平a：单体 100%
     {type:"DamageMultiplier",value:1.0,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 100% 伤害。"},
   {id:"ult_ares",name:"生生不息",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 200%，打完给自己挂【生息不止】（受击回 40% 生命；满 3 次把同排最高攻的队友连携出去）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"VitalityOnHurt",value:0.4,hits:3,target:"Self"}
-  ]},
+  ],desc:"对当前目标 200% 伤害，并获得【生息不止】：每次受击回复 40% 生命，累计受击 3 次后给同排攻击最高的队友一个立即出手回合。"},
   {id:"pas_ares_king",name:"生命之王",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 开局：生命上限 +100%（涨出来的血同步补上），并发 2 层【复活储备】
     {type:"MaxHpUp",value:1.0,target:"Self"},
     {type:"ReviveCharge",value:2,target:"Self"}
-  ]},
+  ],desc:"战斗开始时最大生命 +100%，并获得 2 层【复活储备】（每层 = 死后原地满血复活一次）。"},
   {id:"pas_ares_revive",name:"生命之王·不朽",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
     // 致命伤时扣掉一层【复活储备】，满血站回来。储备是开局发的那 2 层，用完就没了
     {type:"Revive",value:1.0,target:"Self",useCharge:true}
-  ]}
-  // ============ 诺亚（光 · 攻击：群攻 / 每回合一条命 / 复活即连携）============
+  ],desc:"被击败时消耗 1 层复活储备，以 100% 生命复活。"}  // ============ 诺亚（光 · 攻击：群攻 / 每回合一条命 / 复活即连携）============
   ,
   {id:"atk_noah",name:"时之刃",triggerType:"NormalAttack",tags:[
     // 平a：【群攻】*2，每击 200%
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"MultiTarget",value:2}
-  ]},
+  ],desc:"随机命中 2 名敌人，各受 200% 伤害。"},
   {id:"ult_noah",name:"时间洪流",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：【群攻】*3，每击 300%
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
     {type:"MultiTarget",value:3}
-  ]},
+  ],desc:"随机命中 3 名敌人，各受 300% 伤害。"},
   // fromRound:2 —— **第一个大回合不算数**。进场那回合诺亚必然是满血活人，
   // 开场这条跑一遍纯属白给；从第二大回合开场起才生效。
   {id:"pas_noah_time",name:"时间之子",triggerType:"OnRoundStart",fromRound:2,passiveTriggerChance:1.0,tags:[
@@ -163,38 +160,35 @@ let SKILLS = [
     // （不过 value=1.0 时复活本身就是满血，留着是为了以后改小复活比例也不出错）。
     {type:"Revive",value:1.0,target:"Self",chain:1},
     {type:"HealPct",value:1.0,target:"Self"}
-  ]}
-  // ============ 修尔（暗 · 速度：禁疗 + 大招暴击 + 抽气势）============
+  ],desc:"每个大回合开始：若处于阵亡状态，以 100% 生命复活（每场限一次）并获得立即出手回合；存活时回满生命。"}  // ============ 修尔（暗 · 速度：禁疗 + 大招暴击 + 抽气势）============
   ,
   {id:"atk_schurr",name:"是非之咬",triggerType:"NormalAttack",tags:[
     // 平a：单体 200%，并给当前目标挂【禁疗】（永久，直到目标复活时抵消或下次死亡后解除）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"StrongHealBlock",value:-1,duration:-1,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 200% 伤害，并使目标陷入【高级禁疗】：无法回血、无法被复活储备救回。"},
   {id:"ult_schurr",name:"因果裁决",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 600%，暴击率额外 +40%，再挂永久【禁疗】
     {type:"DamageMultiplier",value:6.0,target:"CurrentTarget"},
     {type:"CritBoost",value:0.4,target:"Self"},
     {type:"StrongHealBlock",value:-1,duration:-1,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 600% 伤害，自身暴击率 +40%，并使目标陷入【高级禁疗】。"},
   {id:"pas_schurr_pursuit",name:"是非之魔",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 开场：敌方同横排所有单位气势 -20
     {type:"EnergyDown",value:-20,target:"EnemySameRow"}
-  ]}
-  // ============ 莉莉丝（草 · 平衡/英雄：嘲讽 + 群体按单体结算 + 复活阵亡 + 大地赐福）============
+  ],desc:"战斗开始时，敌方同一横排的所有敌人气势 -20。"}  // ============ 莉莉丝（草 · 平衡/英雄：嘲讽 + 群体按单体结算 + 复活阵亡 + 大地赐福）============
   ,
   {id:"atk_lilith",name:"蔓生之息",triggerType:"NormalAttack",tags:[
     // 平a：单体 200%（无禁疗，禁疗是修尔的专属）
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 200% 伤害。"},
   {id:"ult_lilith",name:"圣灵庇佑",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 300% + 给自己挂【嘲讽】-1（永久，触发后本回合就在嘲讽）
     // + 【圣灵庇佑】被动：死后随机复活一个阵亡角色（含自己）满血在场
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
     {type:"Taunt",value:-1,duration:-1,target:"Self"},
     {type:"Revive",value:1.0,target:"FallenAllyRandom",once:true}
-  ]}
-  // 莉莉丝的【英雄技】：大地赐福。草属性 ≥2 时：
+  ],desc:"对当前目标 300% 伤害，自身获得永久【嘲讽】（强制敌人优先攻击自己）；并随机复活一名阵亡队友（恢复 100% 生命，每场限一次）。"}  // 莉莉丝的【英雄技】：大地赐福。草属性 ≥2 时：
   //   1. 全队血上限 +20%（战前结算，永久）
   //   2. 草属性角色挂【气势免疫】（在引擎里让 EnergyDown 对其无效）
   //   3. 草属性角色每次放大招后立刻回满气势（在引擎里 executeSkill 末尾检测）
@@ -217,14 +211,13 @@ let SKILLS = [
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"Repeat",value:2},
     {type:"RepeatBoost",value:1,condition:"Outnumbered",source:"创界破军"}
-  ]},
+  ],desc:"造成 200% 伤害 ×2 连击；每次攻击命中都给通灵师累积通灵点。"},
   {id:"ult_kunlun",name:"通灵·破天击",triggerType:"Ultimate",energyCost:100,tags:[
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
     {type:"Repeat",value:3},
     {type:"RepeatBoost",value:1,condition:"Outnumbered",source:"创界破军"}
-  ]},
-  {id:"pas_kunlun_pursuit",name:"创界破军",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[]}
-  // 创界破军的实际效果由 RepeatBoost 词条承载（在 executeSkill 解析阶段按 condition
+  ],desc:"造成 300% 伤害 ×3 连击。"},
+  {id:"pas_kunlun_pursuit",name:"创界破军",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[],desc:"我方存活人数少于敌方时，连击数 +1（劣势时爆发更强）。每次攻击命中累积通灵点。"}  // 创界破军的实际效果由 RepeatBoost 词条承载（在 executeSkill 解析阶段按 condition
   // 给 dmgHit.repeat 累加）。把 condition 写在词条里是为了 UI 能直接渲染出
   // 「条件连攻 +1（己方人数劣势）」这个 chip，让玩家在技能描述里看到触发条件。
 
@@ -238,21 +231,20 @@ let SKILLS = [
   {id:"atk_noya",name:"星芒·散射",triggerType:"NormalAttack",tags:[
     {type:"DamageMultiplier",value:2.0},
     {type:"MultiTarget",value:2}
-  ]},
+  ],desc:"随机命中 2 名敌人，各受 200% 伤害。"},
   {id:"ult_noya",name:"月华·广域",triggerType:"Ultimate",energyCost:100,tags:[
     {type:"DamageMultiplier",value:3.0},
     {type:"MultiTarget",value:3}
-  ]},
+  ],desc:"随机命中 3 名敌人，各受 300% 伤害。"},
   {id:"pas_noya_stellar",name:"星月同辉",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     {type:"EnergyDrainImmunity"}
-  ]}
-  // ============ 龙炎（火 · 平衡：护盾坦克 + 毁灭伤害爆发）============
+  ],desc:"气势没有上限，并免疫一切气势降低（包括大招的气势消耗）。"}  // ============ 龙炎（火 · 平衡：护盾坦克 + 毁灭伤害爆发）============
   ,
   {id:"atk_longyan",name:"炎龙重击",triggerType:"NormalAttack",tags:[
     // 平a：单体 400% + 给自己加 40% 最大生命的盾（持续 3 个大回合）
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"Shield",pct:0.4,target:"Self",duration:3}
-  ]},
+  ],desc:"造成 400% 伤害，并获得 40% 最大生命的护盾（持续 3 回合）。"},
   {id:"ult_longyan",name:"龙皇霸焰",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 400% + 100% 最大生命的盾 + 【嘲讽】（新嘲讽覆盖旧嘲讽），
     // 毁灭伤害 = 对**同一目标继续出伤**（类似继续出手，无视防御/护盾/暴击）。
@@ -261,23 +253,22 @@ let SKILLS = [
     {type:"Shield",pct:1.0,target:"Self",duration:3},
     {type:"Taunt",value:-1,duration:-1,target:"Self"},
     {type:"DestructionDamage",value:5.0,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 400% 伤害，获得 100% 最大生命护盾（3 回合）与永久【嘲讽】，并对目标追加 500% 毁灭伤害（无视防御、护盾、暴击与格挡）。"},
   {id:"pas_longyan_king",name:"力量之王",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 受伤降低 30%（永久减伤，与其它减伤叠加、总上限 80%）
     {type:"DamageReduction",value:0.3,target:"Self",duration:-1}
-  ]},
+  ],desc:"战斗开始时获得 30% 减伤（持续整场）。"},
   {id:"pas_longyan_growth",name:"力量之王·龙威",triggerType:"OnRoundStart",passiveTriggerChance:1.0,tags:[
     // 每个大回合开始：生命上限 +30%（涨上限同步补血，可无限叠）+ 防御 +30%（defMult 累乘）
     {type:"MaxHpUp",value:0.3,target:"Self"},
     {type:"DefMult",value:0.3,target:"Self"}
-  ]}
-  // ============ 正理（暗 · 速度：群攻爆发 + 高级禁疗 + 死亡成长）============
+  ],desc:"每个大回合开始：最大生命 +30%、防御永久 +30%（成长型肉盾）。"}  // ============ 正理（暗 · 速度：群攻爆发 + 高级禁疗 + 死亡成长）============
   ,
   {id:"atk_zhengli",name:"幽影连斩",triggerType:"NormalAttack",tags:[
     // 平a：300% 群攻×2
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"},
     {type:"MultiTarget",value:2}
-  ]},
+  ],desc:"随机命中 2 名敌人，各受 300% 伤害。"},
   {id:"ult_zhengli",name:"轮回断罪",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：300% 群攻×3，所有命中对象挂【高级禁疗】（不可被复活储备抵消）；
     // 若敌方有存活通灵师，扣其 4 点通灵点。群攻数随自身死亡次数成长（perDeath）
@@ -285,112 +276,105 @@ let SKILLS = [
     {type:"MultiTarget",value:3,perDeath:1},
     {type:"StrongHealBlock",value:-1,duration:-1,target:"CurrentTarget"},
     {type:"SpiritPointDown",value:4}
-  ]},
+  ],desc:"随机命中 3 名敌人，各受 300% 伤害，并使目标【高级禁疗】；同时吸取敌方每个通灵师 4 点通灵点。"},
   {id:"pas_zhengli_revive",name:"轮回之神",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 开局 2 层复活储备 + 死亡成长标记（引擎按 _deathCount 给 MultiTarget 加成）
     {type:"ReviveCharge",value:2,target:"Self"},
     {type:"DeathsScale",value:1,target:"Self"}
-  ]}
-  ,
+  ],desc:"被击败时消耗 1 层复活储备，以 100% 生命复活。"}  ,
   {id:"pas_zhengli_cycle",name:"轮回之神·归",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
     // 致命伤时扣 1 层储备满血站回来（死亡本身已被 _deathCount 记账，群攻数 +1）
     {type:"Revive",value:1.0,target:"Self",useCharge:true}
-  ]}
-  // ============ 归墟·薄伽丘（水 · 肉盾：噬神之力 / 受击前触发）============
+  ],desc:"被击败时消耗 1 层复活储备，以 100% 生命复活。"}  // ============ 归墟·薄伽丘（水 · 肉盾：噬神之力 / 受击前触发）============
   ,
   {id:"atk_boccaccio",name:"沉渊击",triggerType:"NormalAttack",tags:[
     // 平a：单体 300%
     {type:"DamageMultiplier",value:3.0,target:"CurrentTarget"}
-  ]},
+  ],desc:"造成 300% 伤害。"},
   {id:"ult_boccaccio",name:"归墟噬神",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 600%，获得 3 层噬神之力，通灵点转移 2 点（敌方已通灵才被吸）
     {type:"DamageMultiplier",value:6.0,target:"CurrentTarget"},
     {type:"DevourPower",value:3},
     {type:"SpiritDrain",value:2}
-  ]},
+  ],desc:"造成 600% 伤害，获得 3 层【噬神之力】，并吸取敌方通灵师 2 点通灵点（敌方未通灵则吸不到，己方通灵师固定 +2）。"},
   {id:"pas_boccaccio_tank",name:"归墟之躯",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 血量上限 +300%（涨上限同步补血）+ 50% 减伤
     {type:"MaxHpUp",value:3.0,target:"Self"},
     {type:"DamageReduction",value:0.5,duration:-1,target:"Self"}
-  ]},
+  ],desc:"战斗开始时最大生命 +300%，并获得 50% 减伤（持续整场）。"},
   {id:"pas_boccaccio_devour",name:"噬神之力",triggerType:"OnHit",passiveTriggerChance:1.0,tags:[
     // 标记词条：引擎在受击「前」检测该标记结算噬神（层数存 devourStacks）
     {type:"DevourPower",value:1}
-  ]}
-  // ============ 双生龙尊·白（光 · 速度：顶级复活 / 50% 基础闪避）============
+  ],desc:"受到攻击之前消耗 1 层【噬神之力】：获得 50% 最大生命的护盾；自己被这一击打死则优先复活自己（30% 生命），否则复活随机阵亡队友（30% 生命）；无人可复活则随机一名己方存活队友回满血。连击的每一段各自触发。"}  // ============ 双生龙尊·白（光 · 速度：顶级复活 / 50% 基础闪避）============
   ,
   {id:"atk_bai",name:"圣辉斩",triggerType:"NormalAttack",tags:[
     // 平a：单体 400%，吸收敌方 2 通灵点
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"SpiritDrain",value:2}
-  ]},
+  ],desc:"造成 400% 伤害，并吸取敌方通灵师 2 点通灵点（敌方未通灵则吸不到，己方通灵师固定 +2）。"},
   {id:"ult_bai",name:"神判之光",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：单体 400% + 吸灵 2 + 【顶级复活】战力最高的阵亡队友（无视一切禁疗），满血/满气势 + 立即出手
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"SpiritDrain",value:2},
     {type:"Revive",value:1.0,target:"FallenAllyHighestPower",force:true,fullEnergy:true,chain:1}
-  ]},
+  ],desc:"造成 400% 伤害并吸取 2 点通灵点；【顶级复活】复活战力最高的阵亡队友——无视一切禁疗效果强制复活，被复活者满血、满气势并获得立即出手回合；场上没有阵亡队友时，改为让战力最高的存活队友回满气势并获得立即出手回合。"},
   {id:"pas_bai_judge",name:"神判",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 1 次复活储备（两条命）；50% 基础闪避走角色字段 baseDodge
     {type:"ReviveCharge",value:1,target:"Self"}
-  ]},
+  ],desc:"战斗开始时获得 1 层【复活储备】（两条命）；基础闪避率 50%（装备闪避星神可继续提高）。基础闪避只对直接攻击生效，毁灭伤害无法闪避。"},
   {id:"pas_bai_revive",name:"神判·归",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
     {type:"Revive",value:1.0,target:"Self",useCharge:true}
-  ]}
-  // ============ 双生龙尊·黑（暗 · 攻击：毁灭附加 / 攻击叠层 / 回合开始立即出手）============
+  ],desc:"被击败时消耗 1 层复活储备，以 100% 生命复活。"}  // ============ 双生龙尊·黑（暗 · 攻击：毁灭附加 / 攻击叠层 / 回合开始立即出手）============
   ,
   {id:"atk_hei",name:"暗渊斩",triggerType:"NormalAttack",tags:[
     // 平a：单体 400% + 300% 毁灭伤害打敌方血量最高
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"TrueDamage",value:3.0,target:"EnemyHighestHp"}
-  ]},
+  ],desc:"造成 400% 伤害，并对敌方血量最高的单位追加 300% 毁灭伤害（无视防御、护盾、暴击与格挡）。"},
   {id:"ult_hei",name:"罪裁·灭世",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：释放前攻 +50%（无限叠），400% 群攻×3，+400% 毁灭打血量最高
     {type:"AtkStack",value:0.5},
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"MultiTarget",value:3},
     {type:"TrueDamage",value:4.0,target:"EnemyHighestHp"}
-  ]},
+  ],desc:"释放前攻击力 +50%（可无限叠加）；随机命中 3 名敌人各受 400% 伤害，并对敌方血量最高者追加 400% 毁灭伤害。"},
   {id:"pas_hei_judge",name:"罪裁",triggerType:"OnRoundStart",passiveTriggerChance:1.0,tags:[
     // 每个大回合开始：立即出手机会（连携）；双黑同阵时速度快者先（回合开始按速度排序）
     {type:"Chain",value:1,target:"Self"}
-  ]}
-  // ============ 次元龙尊（光 · 攻击：破甲连击 / 对盾必暴）============
+  ],desc:"每个大回合开始获得一次立即出手回合（算入通灵点判定）；双方都上阵双生龙尊·黑时，速度快的一方先出手。"}  // ============ 次元龙尊（光 · 攻击：破甲连击 / 对盾必暴）============
   ,
   {id:"atk_dimens",name:"次元斩",triggerType:"NormalAttack",tags:[
     // 平a：400% ×3 连击，每段破甲 30%（防御下限 20%）
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"Repeat",value:3},
     {type:"DefBreak",value:0.3}
-  ]},
+  ],desc:"造成 400% 伤害 ×3 连击，每段命中降低目标 30% 防御力（最多叠加到只剩基础防御的 20%）。破甲在每段伤害结算后生效，后续段数吃到更高伤害。"},
   {id:"ult_dimens",name:"次元裁决",triggerType:"Ultimate",energyCost:100,tags:[
     // 大招：400% ×4 连击，每段破甲 30%
     {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
     {type:"Repeat",value:4},
     {type:"DefBreak",value:0.3}
-  ]},
+  ],desc:"造成 400% 伤害 ×4 连击，每段命中同样破甲 30%。开大前先破、段段增伤，是打高防肉盾的利器。"},
   {id:"pas_dimens_blade",name:"次元锋刃",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
     // 标记词条：目标有护盾 → 攻击必定暴击
     {type:"CritVsShield"}
-  ]}
-  // ============ 法纳斯（暗 · 速度 · 通灵师：闪避流辅助）============
+  ],desc:"目标身上有护盾时，攻击必定暴击。"}  // ============ 法纳斯（暗 · 速度 · 通灵师：闪避流辅助）============
   ,
   {id:"atk_fanusi",name:"暗影步",triggerType:"NormalAttack",tags:[
     // 平a：200% 单体，自身闪避 +50%，攻击最高队友立即出手
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"DodgeBoost",value:0.5,target:"Self"},
     {type:"AllyHighestAtkChain",value:1}
-  ]},
+  ],desc:"造成 200% 伤害，自身闪避率 +50%，并让队伍中存活的攻击力最高队友立即出手（隐身也算存活；只剩自己存活则不触发）。"},
   {id:"ult_fanusi",name:"神谕之言",triggerType:"Ultimate",energyCost:100,tags:[
     {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
     {type:"DodgeBoost",value:0.5,target:"Self"},
     {type:"AllyHighestAtkChain",value:1}
-  ]},
+  ],desc:"造成 200% 伤害，自身闪避率 +50%，并让攻击力最高的存活队友立即出手。"},
   {id:"pas_fanusi_dodge",name:"暗影衰减",triggerType:"OnHit",passiveTriggerChance:1.0,tags:[
     // 标记词条：每次成功闪避自身闪避率 -30%（下限 20%）
     {type:"DodgeDecay"}
-  ]}
-  // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
+  ],desc:"每次成功闪避攻击后，自身闪避率 -30%（最低降到基础的 20%）。闪避越频繁，衰减越快——注意节奏。"}  // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
 ];

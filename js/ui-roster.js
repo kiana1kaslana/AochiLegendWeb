@@ -97,6 +97,7 @@ const RosterUI = {
         <div class="sk-dmg">${multText}${s.energyCost?` · 放大招门槛 ${s.energyCost} 气势`:""}</div>
         ${hitText}
         <div class="tag-chips">${chips||"<span style='color:var(--muted);font-size:11px'>无词条</span>"}</div>
+        ${s.desc?`<div style="font-size:12px;color:#c9d6e3;line-height:1.7;margin-top:6px;border-left:3px solid #4a5a6a;padding-left:8px">${s.desc}</div>`:""}
       </div>`;
     };
     // 该角色所有技能里用到的词条类型（去重，保持出现顺序）
