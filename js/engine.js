@@ -972,11 +972,13 @@ class BattleController{
     // 资源型词条处理（龙魂初始/补充/反击挂钩）
     this._execResourceTags(caster, skill, supportTags);
     if(dmgHits.length>0 || trueDmgHits.length>0){
+      // 【罪裁蓄力】必须在伤害前生效（本次大招就吃到攻击加成）
+      for(const st of supportTags) if(st.type==="AtkStack") this._execSupport(caster, st, skill);
       this._execDamage(caster, dmgHits, trueDmgHits, comboCount, critChance, critMult,
         piercePct, splashPct, followUpChance, onHitDebuffs, lifestealPct, energyDrain, multiTargetCount);
     }
     for(const b of selfBuffs) this._applySelfBuff(caster, b);
-    for(const s of supportTags) this._execSupport(caster, s, skill);
+    for(const s of supportTags) if(s.type!=="AtkStack") this._execSupport(caster, s, skill);   // AtkStack 已在伤害前结算
     // 英雄光环"大地赐福"激活时：草属性角色每次放大招后回满气势。
     // 判定条件：caster 是草属性 + 大招 + 大地赐福激活（energyImmunity 是 aura 留下的标志）。
     // 必须放在 selfBuffs/supportTags 之后，否则被【气势吸取】先抽走再回满会变成"白吸"。
