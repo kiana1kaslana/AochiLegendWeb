@@ -1457,8 +1457,9 @@ class BattleController{
     //     放在伤害事件之后、状态结算之前，日志读起来就是「挨了 X 伤害 → 回了 Y 血」。
     //     actual==0 说明这一下被闪避/免疫/护盾吃干净了，不算「受到伤害」，不触发。
     if(actual>0) this._processOnDamagedPassives(target, caster);
-    // 8. 施加状态
-    if(target.isAlive){
+    // 8. 施加状态（目标死亡也挂：死亡不清状态，复活后禁疗等仍在——
+    //    否则被大招直接打死的单位，复活时身上没有禁疗标记，会出现"挂了禁疗还能被复活"的漏洞）
+    {
       for(const d of onHitDebuffs){
         let immune = false;
         for(const p of target.passives)
