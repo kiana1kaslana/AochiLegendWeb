@@ -945,7 +945,7 @@ class BattleController{
         // 【比例治疗】按最大生命回血；【复活储备】发复活次数；【生息不止】挂受击回血效果
         // 【连携】给目标一个立刻出手的回合——它可能跟在【复活】后面（诺亚「被复活就出动」），
         // 所以一起进 supportTags，靠声明顺序保证「先复活、再连携」。
-        case "DevourPower": case "SpiritDrain":
+        case "DevourPower": case "SpiritDrain": case "AtkStack":
         case "HealPct": case "ReviveCharge": case "VitalityOnHurt": case "Chain":
         // 【防御成长】：defMult 累乘叠加（和刷新取最大的 DefUp 不同），龙炎龙威用
         case "DefMult":
@@ -1304,13 +1304,14 @@ class BattleController{
     // 【毁灭伤害】/ 真实伤害的识别方式：只有 trueDmg 有值、普通倍率为 0
     const isTrueDamage = dmgMult===0 && trueDmg>0;
     // 1. 闪避（含被动与【闪避星神】）
-    let dodgeChance = BASE_DODGE_CHANCE + target.bonusDodgeChance + (target.starDodgeChance||0);
+    let dodgeChance = (target.data.baseDodge ?? BASE_DODGE_CHANCE) + target.bonusDodgeChance + (target.starDodgeChance||0);
     for(const p of target.passives){
       if(p.triggerType!=="OnHit") continue;
       if(this.rng() > (p.passiveTriggerChance??1)) continue;
       for(const t of p.tags||[]) if(t.type==="Dodge") dodgeChance += t.chance;
     }
-    if(dodgeChance>0 && this.rng()<dodgeChance){
+    // 【毁灭伤害】不可被闪避（基础闪避只对直接攻击生效）
+    if(!isTrueDamage && dodgeChance>0 && this.rng()<dodgeChance){
       this.addEvent("Dodged", caster, target, 0, `  ${target.data.name} 闪避了攻击！`, {dodged:true});
       return 0;
     }
@@ -1533,6 +1534,10 @@ class BattleController{
       case "AllyExceptSelf": return atkGrid.aliveUnits().filter(u=>u!==caster);
       // 阵亡池：只有【复活】用得着。活着的人不在里面，所以【复活】打空目标时
       // 不会把满血队友"复活"一遍。
+      case "FallenAllyHighestPower": {
+        const fallen = atkGrid.allUnits().filter(u=>!u.isAlive);
+        return fallen.length ? [fallen.reduce((m,u)=>(u.maxHp/10+u.effAtk*2+u.effDef*2+u.data.spd*1.5) > (m.maxHp/10+m.effAtk*2+m.effDef*2+m.data.spd*1.5)?u:m)] : [];
+      }
       case "FallenAllyRandom": {
         const fallen = atkGrid.allUnits().filter(u=>!u.isAlive);
         return fallen.length ? [fallen[Math.floor(this.rng()*fallen.length)]] : [];
@@ -1684,6 +1689,13 @@ class BattleController{
         }
         break;
       }
+      case "AtkStack": {
+        // 罪裁蓄力：释放前攻击力永久 +value（atkMult 无限叠加）
+        caster.atkMult = (caster.atkMult||1) + (tag.value||0);
+        this.addEvent("Info", caster, caster, caster.atkMult,
+          `  【罪裁蓄力】${caster.data.name} 攻击力 +${Math.round((tag.value||0)*100)}%（当前 ×${caster.atkMult.toFixed(1)}）`);
+        break;
+      }
       case "SpiritPointDown": {
         // 【通灵压制】：敌方每个存活通灵师扣 value 点通灵点（最低 0）
         const foes = defGrid.aliveUnits().filter(u=>u.isSpiritist());
@@ -1730,9 +1742,11 @@ class BattleController{
           if(fallen.length>0){
             rt = tag.target==="AllyLowestHp"
               ? fallen.reduce((m,u)=>u.maxHp<m.maxHp?u:m)
-              : tag.target==="FallenAllyRandom"
-                ? fallen[Math.floor(this.rng()*fallen.length)]   // 随机捞一个，抽的是阵亡池
-                : fallen[0];
+              : tag.target==="FallenAllyHighestPower"
+                ? fallen.reduce((m,u)=>(u.maxHp/10+u.effAtk*2+u.effDef*2+u.data.spd*1.5) > (m.maxHp/10+m.effAtk*2+m.effDef*2+m.data.spd*1.5)?u:m)   // 战力最高
+                : tag.target==="FallenAllyRandom"
+                  ? fallen[Math.floor(this.rng()*fallen.length)]   // 随机捞一个，抽的是阵亡池
+                  : fallen[0];
           }
         }
         if(!rt) break;
@@ -1743,10 +1757,10 @@ class BattleController{
         // 用 consumeCharge 标记避免下方 if(rt) 复活分支再扣一次储备。
         let consumeCharge = tag.useCharge;
         // 【高级禁疗】：复活直接失败，储备不能抵消、也不消耗
-        if(rt.hasStatus("StrongHealBlock")){
-          break;   // 复活失败静默（用户要求：不播报字幕/特效）
+        if(!tag.force && rt.hasStatus("StrongHealBlock")){
+          break;   // 复活失败静默（【顶级复活】force=true 可无视）
         }
-        if(rt.hasStatus("HealBlock")){
+        if(!tag.force && rt.hasStatus("HealBlock")){
           if(consumeCharge && (caster.reviveCharges||0) > 0){
             caster.reviveCharges -= 1;
             consumeCharge = false;  // 已被抵消分支扣过
@@ -1772,6 +1786,7 @@ class BattleController{
             caster.reviveCharges = Math.max(0, (caster.reviveCharges||0) - 1);
           }
           this.addEvent("Revive", caster, rt, rt.currentHp, `  ${rt.data.name} 被复活！恢复 ${rt.currentHp} HP`);
+        if(tag.fullEnergy){ rt.currentEnergy = rt.maxEnergy; this.addEvent("EnergyGain", rt, rt, rt.maxEnergy, `  ${rt.data.name} 气势回满（${rt.maxEnergy}）`); }
           // 「每次被复活 → 获得【连携】」写在复活词条自己的 chain 字段上，而不是拆成
           // 一条单独的【连携】tag：只有真复活才给。拆开的话，那条 Chain 每次技能执行都跑，
           // 诺亚的回合开场被动会变成「每回合白送一个出手回合」。

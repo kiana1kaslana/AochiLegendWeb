@@ -317,6 +317,44 @@ let SKILLS = [
     // 标记词条：引擎在受击「前」检测该标记结算噬神（层数存 devourStacks）
     {type:"DevourPower",value:1}
   ]}
+  // ============ 双生龙尊·白（光 · 速度：顶级复活 / 50% 基础闪避）============
+  ,
+  {id:"atk_bai",name:"圣辉斩",triggerType:"NormalAttack",tags:[
+    // 平a：单体 400%，吸收敌方 2 通灵点
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"SpiritDrain",value:2}
+  ]},
+  {id:"ult_bai",name:"神判之光",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：单体 400% + 吸灵 2 + 【顶级复活】战力最高的阵亡队友（无视一切禁疗），满血/满气势 + 立即出手
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"SpiritDrain",value:2},
+    {type:"Revive",value:1.0,target:"FallenAllyHighestPower",force:true,fullEnergy:true,chain:1}
+  ]},
+  {id:"pas_bai_judge",name:"神判",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    // 1 次复活储备（两条命）；50% 基础闪避走角色字段 baseDodge
+    {type:"ReviveCharge",value:1,target:"Self"}
+  ]},
+  {id:"pas_bai_revive",name:"神判·归",triggerType:"OnDeath",passiveTriggerChance:1.0,tags:[
+    {type:"Revive",value:1.0,target:"Self",useCharge:true}
+  ]}
+  // ============ 双生龙尊·黑（暗 · 攻击：毁灭附加 / 攻击叠层 / 回合开始立即出手）============
+  ,
+  {id:"atk_hei",name:"暗渊斩",triggerType:"NormalAttack",tags:[
+    // 平a：单体 400% + 300% 毁灭伤害打敌方血量最高
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"TrueDamage",value:3.0,target:"EnemyHighestHp"}
+  ]},
+  {id:"ult_hei",name:"罪裁·灭世",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：释放前攻 +50%（无限叠），400% 群攻×3，+400% 毁灭打血量最高
+    {type:"AtkStack",value:0.5},
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"MultiTarget",value:3},
+    {type:"TrueDamage",value:4.0,target:"EnemyHighestHp"}
+  ]},
+  {id:"pas_hei_judge",name:"罪裁",triggerType:"OnRoundStart",passiveTriggerChance:1.0,tags:[
+    // 每个大回合开始：立即出手机会（连携）；双黑同阵时速度快者先（回合开始按速度排序）
+    {type:"Chain",value:1,target:"Self"}
+  ]}
   // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
@@ -431,6 +469,12 @@ let CHARS = [
   // ============ 归墟·薄伽丘（水 · 肉盾：受击前触发的噬神之力）============
   ,
   {id:"char_boccaccio",name:"归墟·薄伽丘",charClass:"tank",maxHp:4400,atk:480,def:400,spd:80,element:"Water",normalAttackId:"atk_boccaccio",ultimateId:"ult_boccaccio",passiveIds:["pas_boccaccio_tank","pas_boccaccio_devour"],startingEnergy:50,portrait:"assets/img/char_boccaccio.webp"}
+  // ============ 双生龙尊·白（光 · 速度：顶级复活 / 50% 基础闪避）============
+  ,
+  {id:"char_bai",name:"双生龙尊·白",charClass:"speed",maxHp:3600,atk:900,def:250,spd:130,element:"Light",baseDodge:0.5,normalAttackId:"atk_bai",ultimateId:"ult_bai",passiveIds:["pas_bai_judge","pas_bai_revive"],startingEnergy:50,portrait:"assets/img/char_bai.webp"}
+  // ============ 双生龙尊·黑（暗 · 攻击：毁灭附加 / 攻击无限叠层）============
+  ,
+  {id:"char_hei",name:"双生龙尊·黑",charClass:"attack",maxHp:3200,atk:950,def:200,spd:125,element:"Dark",normalAttackId:"atk_hei",ultimateId:"ult_hei",passiveIds:["pas_hei_judge"],startingEnergy:50,portrait:"assets/img/char_hei.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -593,7 +637,7 @@ const TAG_META = {
   HealPct:       {n:"比例治疗",  s:"愈%",  c:"#27ae60", cat:"fn", v:"按最大生命回复的比例（1.0 = 回满）", tgt:1,
     desc:"按目标**最大生命**的比例回血，value=1.0 就是直接回满。相比固定值的【治疗】，它跟着血上限走，越肉的队友吃这一口越赚；缺点是奶脆皮时会溢出。"},
   Revive:        {n:"复活",      s:"生",   c:"#27ae60", cat:"fn", v:"复活时回复的生命比例（0.6=60%）", tgt:1,
-    desc:"单位阵亡时将其救回战场，并回复一定比例生命。填 once=1 表示整场战斗只生效一次；填 useCharge=1 则改成消耗【复活储备】，储备扣完就复活不了（阿瑞斯的「生命之王」、诺亚的「时间之子」都走这条）；再填 chain=1 可以做到「每次被复活顺手给一个【连携】出手回合」。"},
+    desc:"单位阵亡时将其救回战场，并回复一定比例生命。填 once=1 表示整场战斗只生效一次；填 useCharge=1 则改成消耗【复活储备】，储备扣完就复活不了（阿瑞斯的「生命之王」、诺亚的「时间之子」都走这条）；再填 chain=1 可以做到「每次被复活顺手给一个【连携】出手回合」。特殊形态【顶级复活】（force=1，双生龙尊·白专属）：无视【禁疗】/【高级禁疗】强制复活，被复活者回满气势 + 立即出手回合。"},
   ReviveCharge:  {n:"复活储备",  s:"备生", c:"#27ae60", cat:"fn", v:"发放的复活次数（cap = 囤积上限）", tgt:1,
     desc:"给目标记若干次「死了能满血回来」的额度。它本身不复活任何人，只是充能；真正救人靠带 useCharge 的【复活】词条，每复活一次扣 1 层。cap 用来封顶，防止每回合都发、越攒越多——诺亚就是每回合补 1 层、上限 1 层，即「每个大回合手里刚好攥着一条命」。"},
   Dispel:        {n:"驱散",      s:"驱",   c:"#27ae60", cat:"fn", v:"1=驱散", tgt:1,
@@ -637,6 +681,8 @@ const TAG_META = {
     desc:"归墟·薄伽丘专属。大招获得 value 层（存于 devourStacks）。受到攻击「之前」消耗 1 层：获得 50% 最大生命的护盾；若自己被这一下打死则优先复活自己，否则复活随机一名已阵亡队友（恢复 30% 生命）。连击的每一段各自触发。"},
   SpiritDrain:{n:"噬神夺魂", s:"夺魂", c:"#2C5F8A", cat:"fn", v:"转移的通灵点数", tgt:0,
     desc:"己方通灵师获得 value 点通灵点；敌方通灵师若已发动通灵技则被吸取 value 点，未通灵则吸不到。"},
+  AtkStack:{n:"罪裁蓄力", s:"蓄力", c:"#8E44AD", cat:"fn", v:"每次释放增加的攻击力比例", tgt:0,
+    desc:"释放该技能前，自身攻击力永久 +value%（可无限叠加，叠加进 atkMult）。双生龙尊·黑的罪裁蓄力。"},
 };
 function tagName(t){ return (TAG_META[t] && TAG_META[t].n) || t; }
 // 词条分类元信息（用于词条表分组、chip 配色）
