@@ -353,8 +353,16 @@ const Replay = {
         // 【毁灭伤害】走紫色飘字：一眼区分"能挡的伤害"和"挡不住的伤害"
         const isTrue = ev.isTrueDamage || /【毁灭伤害】/.test(ev.text||"");
         const isCrit = ev.type==="CritDamage";
-        const color = isTrue ? "#8e44ad" : (isCrit ? "#e67e22" : "#e74c3c");
-        this._float(t, "-"+ev.value, color, isCrit || isTrue);
+        const sa = ev.shieldAbsorbed||0;
+        if(sa>0) this._float(t, "盾 -"+sa, "#9aa7b5", false);   // 打在盾上：灰字
+        const leaked = Math.max(0, ev.value - sa);
+        if(leaked>0 || ev.value<1){
+          let color, big;
+          if(isTrue){ color = "#1f1f1f"; big = true; }            // 毁灭：黑色
+          else if(ev.shieldBroken){ color = this._elemColorOf(ev.actor); big = isCrit; }  // 破盾：属性色
+          else { color = isCrit ? "#e67e22" : "#e74c3c"; big = isCrit; }
+          this._float(t, (isTrue?"【毁灭】-":(ev.shieldBroken?"破盾 -":"-"))+(leaked>0?leaked:ev.value), color, big);
+        }
         // 暴击：金色「暴击！」徽章 + 加重的红闪抖动，跟普通命中一眼区分开
         if(isCrit){
           this._showBadge(t, "暴击！", "crit", 800);
@@ -439,6 +447,10 @@ const Replay = {
     if(!rb) return;
     if(this.idx===this.events.length-1 && this.result) rb.textContent = this.result.summary + `　共${this.events.length}条事件`;
     else rb.textContent = round ? `第 ${round} 回合` : "战斗开始";
+  },
+  _elemColorOf(u){
+    const el = u && u.data ? (ELEMENTS[u.data.element]||{}) : {};
+    return el.c || "#e74c3c";
   },
   _cell(ref){
     if(!ref) return null;

@@ -198,12 +198,14 @@ class BattleUnit{
   /** 结算伤害。opts.true = 真伤（【毁灭伤害】）：无视减伤与护盾，直接扣血 */
   takeDamage(rawDamage, opts){
     const isTrue = !!(opts && opts.true);
+    this._lastShieldAbsorbed = 0; this._lastShieldBroken = false;
     if(!isTrue){
       rawDamage *= (1 - this.totalDr);
       const shieldBefore = this.totalShield;
       if(shieldBefore > 0){
         // 与 C# 逐行对应：先算总吸收量，再逐层扣盾
         let absorbed = Math.min(shieldBefore, rawDamage);
+        this._lastShieldAbsorbed = absorbed; this._lastShieldBroken = absorbed >= shieldBefore;
         for(const se of this.statusEffects){
           if(se.type!=="Shield") continue;
           const can = Math.min(se.value, absorbed);
@@ -1452,7 +1454,7 @@ class BattleController{
     if(energyMult>1) msg += ` [气势×${energyMult.toFixed(2)}]`;
     if(blocked) msg += " [格挡]";
     if(em>1) msg += " [克制]"; else if(em<1) msg += " [抵抗]";
-    this.addEvent(isCrit?"CritDamage":"Damage", caster, target, actual, msg, {isCrit,blocked,em,isTrueDamage});
+    this.addEvent(isCrit?"CritDamage":"Damage", caster, target, actual, msg, {isCrit,blocked,em,isTrueDamage,shieldAbsorbed:target._lastShieldAbsorbed||0,shieldBroken:!!target._lastShieldBroken});
     // 7.8 受击后钩子（如阿瑞斯的【生息不止】：挨打回血、受击满 3 次给同排最高攻队友【连携】）。
     //     放在伤害事件之后、状态结算之前，日志读起来就是「挨了 X 伤害 → 回了 Y 血」。
     //     actual==0 说明这一下被闪避/免疫/护盾吃干净了，不算「受到伤害」，不触发。
