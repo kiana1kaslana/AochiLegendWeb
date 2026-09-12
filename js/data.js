@@ -355,6 +355,41 @@ let SKILLS = [
     // 每个大回合开始：立即出手机会（连携）；双黑同阵时速度快者先（回合开始按速度排序）
     {type:"Chain",value:1,target:"Self"}
   ]}
+  // ============ 次元龙尊（光 · 攻击：破甲连击 / 对盾必暴）============
+  ,
+  {id:"atk_dimens",name:"次元斩",triggerType:"NormalAttack",tags:[
+    // 平a：400% ×3 连击，每段破甲 30%（防御下限 20%）
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"Repeat",value:3},
+    {type:"DefBreak",value:0.3}
+  ]},
+  {id:"ult_dimens",name:"次元裁决",triggerType:"Ultimate",energyCost:100,tags:[
+    // 大招：400% ×4 连击，每段破甲 30%
+    {type:"DamageMultiplier",value:4.0,target:"CurrentTarget"},
+    {type:"Repeat",value:4},
+    {type:"DefBreak",value:0.3}
+  ]},
+  {id:"pas_dimens_blade",name:"次元锋刃",triggerType:"OnBattleStart",passiveTriggerChance:1.0,tags:[
+    // 标记词条：目标有护盾 → 攻击必定暴击
+    {type:"CritVsShield"}
+  ]}
+  // ============ 法纳斯（暗 · 速度 · 通灵师：闪避流辅助）============
+  ,
+  {id:"atk_fanusi",name:"暗影步",triggerType:"NormalAttack",tags:[
+    // 平a：200% 单体，自身闪避 +50%，攻击最高队友立即出手
+    {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
+    {type:"DodgeBoost",value:0.5,target:"Self"},
+    {type:"AllyHighestAtkChain",value:1}
+  ]},
+  {id:"ult_fanusi",name:"神谕之言",triggerType:"Ultimate",energyCost:100,tags:[
+    {type:"DamageMultiplier",value:2.0,target:"CurrentTarget"},
+    {type:"DodgeBoost",value:0.5,target:"Self"},
+    {type:"AllyHighestAtkChain",value:1}
+  ]},
+  {id:"pas_fanusi_dodge",name:"暗影衰减",triggerType:"OnHit",passiveTriggerChance:1.0,tags:[
+    // 标记词条：每次成功闪避自身闪避率 -30%（下限 20%）
+    {type:"DodgeDecay"}
+  ]}
   // 星月同辉：进入战斗时设置 unit.energyDrainImmunity=true，所有气势降低路径
   // （含大招释放后的清零、敌方【气势吸取】、【气势降低】debuff 等）直接落空。
   // 注意：基线气势增长仍然走原路径，星月同辉只是"不降"而不是"无中生有"。
@@ -475,6 +510,12 @@ let CHARS = [
   // ============ 双生龙尊·黑（暗 · 攻击：毁灭附加 / 攻击无限叠层）============
   ,
   {id:"char_hei",name:"双生龙尊·黑",charClass:"attack",maxHp:3200,atk:950,def:200,spd:125,element:"Dark",normalAttackId:"atk_hei",ultimateId:"ult_hei",passiveIds:["pas_hei_judge"],startingEnergy:50,portrait:"assets/img/char_hei.webp"}
+  // ============ 次元龙尊（光 · 攻击：破甲连击 / 对盾必暴）============
+  ,
+  {id:"char_dimens",name:"次元龙尊",charClass:"attack",maxHp:3400,atk:980,def:220,spd:122,element:"Light",normalAttackId:"atk_dimens",ultimateId:"ult_dimens",passiveIds:["pas_dimens_blade"],startingEnergy:50,portrait:"assets/img/char_dimens.webp"}
+  // ============ 法纳斯（暗 · 速度 · 通灵师：闪避回灵）============
+  ,
+  {id:"char_fanusi",name:"法纳斯",charClass:"speed",specialClass:"spirit",maxHp:3000,atk:760,def:190,spd:136,element:"Dark",spiritThreshold:8,spiritGain:"fanusi",spiritSkillName:"毁灭神谕",normalAttackId:"atk_fanusi",ultimateId:"ult_fanusi",passiveIds:["pas_fanusi_dodge"],startingEnergy:50,portrait:"assets/img/char_fanusi.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。
@@ -683,6 +724,14 @@ const TAG_META = {
     desc:"己方通灵师获得 value 点通灵点；敌方通灵师若已发动通灵技则被吸取 value 点，未通灵则吸不到。"},
   AtkStack:{n:"罪裁蓄力", s:"蓄力", c:"#8E44AD", cat:"fn", v:"每次释放增加的攻击力比例", tgt:0,
     desc:"释放该技能前，自身攻击力永久 +value%（可无限叠加，叠加进 atkMult）。双生龙尊·黑的罪裁蓄力。"},
+  DefBreak:{n:"次元破甲", s:"破甲", c:"#7D3C98", cat:"def", v:"每段降低的防御力比例", tgt:1,
+    desc:"每段伤害命中后目标防御力 -value%（累计叠加，最多叠加到防御力只剩 20% 基础防御）。连击的每一段各自结算。次元龙尊专属。"},
+  CritVsShield:{n:"次元锋刃", s:"锋刃", c:"#F1C40F", cat:"own", v:"—", tgt:0,
+    desc:"标记词条：目标身上有护盾时，持有者的攻击必定暴击。次元龙尊专属。"},
+  DodgeDecay:{n:"暗影衰减", s:"衰减", c:"#6C3483", cat:"own", v:"—", tgt:0,
+    desc:"标记词条：每次成功闪避攻击后，自身闪避率 -30%（最低降到基础 20%）。法纳斯专属。"},
+  AllyHighestAtkChain:{n:"神谕传递", s:"传递", c:"#5DADE2", cat:"fn", v:"授予的出手次数", tgt:1,
+    desc:"队伍中存活的攻击力最高队友（隐身也算存活）获得 value 次立即出手回合；只剩自己存活则不触发。法纳斯专属。"},
 };
 function tagName(t){ return (TAG_META[t] && TAG_META[t].n) || t; }
 // 词条分类元信息（用于词条表分组、chip 配色）
