@@ -499,7 +499,7 @@ let CHARS = [
   {id:"char_dimens",name:"次元龙尊",charClass:"attack",maxHp:3400,atk:980,def:220,spd:122,element:"Light",normalAttackId:"atk_dimens",ultimateId:"ult_dimens",passiveIds:["pas_dimens_blade"],startingEnergy:50,portrait:"assets/img/char_dimens.webp"}
   // ============ 法纳斯（暗 · 速度 · 通灵师：闪避回灵）============
   ,
-  {id:"char_fanusi",name:"法纳斯",charClass:"speed",specialClass:"spirit",maxHp:3000,atk:760,def:190,spd:136,element:"Dark",spiritThreshold:8,spiritGain:"fanusi",spiritSkillName:"毁灭神谕",normalAttackId:"atk_fanusi",ultimateId:"ult_fanusi",passiveIds:["pas_fanusi_dodge"],startingEnergy:50,portrait:"assets/img/char_fanusi.webp"}
+  {id:"char_fanusi",name:"法纳斯",charClass:"speed",specialClass:"spirit",maxHp:3000,atk:760,def:190,spd:136,element:"Dark",spiritThreshold:11,spiritGain:"fanusi",spiritSkillName:"毁灭神谕",normalAttackId:"atk_fanusi",ultimateId:"ult_fanusi",passiveIds:["pas_fanusi_dodge"],startingEnergy:50,portrait:"assets/img/char_fanusi.webp"}
 ];
 // 【星神】槽位规范化（默认每人一个【气势星神】）。注意 DataIO.load 之后还要再跑一次，
 // 因为存档里的角色是整条替换进来的，不带 starGods 字段。

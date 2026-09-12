@@ -1175,6 +1175,8 @@ class BattleController{
           this.addEvent("EnergyGain", caster, null, ENERGY_BASIC_GAIN,
             `  ${caster.data.name} 平a回势 +${ENERGY_BASIC_GAIN}（当前 ${Math.round(caster.currentEnergy)}/${caster.maxEnergy}）`);
         }
+        // 【修复】额外回合出手的死亡被动：黑龙罪裁抢先出手灭队时，OnDeath 复活必须触发
+        this._processDeathPassives();
       }
     } finally {
       caster._comboDepth -= 1;
