@@ -162,6 +162,7 @@ const RosterUI = {
             <div>
               <h2 style="margin:0">${c.name} <span style="background:${ec};color:#fff;padding:3px 10px;border-radius:12px;font-size:12px;vertical-align:middle">${el}系</span> <span style="vertical-align:middle">${clsBadge(c.charClass,true)}</span>${c.specialClass?` <span style="vertical-align:middle">${specBadge(c.specialClass,true)}</span>`:""}</h2>
               <div style="color:var(--muted);font-size:11px;margin-top:2px">${c.id} · 初始气势 ${c.startingEnergy??50} · ${cm.tag}</div>
+              ${c.specialClass==='spirit'?`<div style="color:#C77DFF;font-size:12px;margin-top:4px">【通灵】攒满 ${c.spiritThreshold} 点发动「${c.id==='char_kunlun'?'破军降世':c.id==='char_noya'?'星月降临':'通灵技'}」；获取：${c.id==='char_kunlun'?'己方任意单位出手攻击按命中段数累积（含自己）':c.id==='char_noya'?'光/暗属性队友出手 +2，其他 +0':'随队友出手累积'}<br>首次变身 HP×2 / 攻×1.6 / 满血 +1 连携；再次只满血 +1 连携</div>`:''}
             </div>
             <div style="text-align:right">
               <div style="font-size:24px;font-weight:bold;color:#e67e22">${pwr.toLocaleString()}</div>
