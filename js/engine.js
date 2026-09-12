@@ -1382,19 +1382,31 @@ class BattleController{
     // 7.6 【噬神之力】复活裁决：自己被这一下打死 → 优先复活自己；否则拉回随机一名已阵亡队友
     if(devourUsed){
       const ownGrid = target.isPlayerSide ? this.playerGrid : this.enemyGrid;
+      const blockedRevive = u => u.hasStatus("HealBlock") || u.hasStatus("StrongHealBlock");
       if(!target.isAlive){
-        target.isAlive = true;
-        target.currentHp = Math.max(1, Math.trunc(target.maxHp*0.3));
-        this.addEvent("Revive", target, target, target.currentHp,
-          `  【噬神之力】${target.data.name} 噬己复活！恢复 ${target.currentHp} HP`);
+        if(!blockedRevive(target)){
+          target.isAlive = true;
+          target.currentHp = Math.max(1, Math.trunc(target.maxHp*0.3));
+          this.addEvent("Revive", target, target, target.currentHp,
+            `  【噬神之力】${target.data.name} 噬己复活！恢复 ${target.currentHp} HP`);
+        }
       } else {
         const fallen = ownGrid.allUnits().filter(u=>!u.isAlive && u!==target);
         if(fallen.length){
           const r = fallen[Math.floor(this.rng()*fallen.length)];
-          r.isAlive = true;
-          r.currentHp = Math.max(1, Math.trunc(r.maxHp*0.3));
-          this.addEvent("Revive", target, r, r.currentHp,
-            `  【噬神之力】${r.data.name} 被拉回战场！恢复 ${r.currentHp} HP`);
+          if(!blockedRevive(r)){
+            r.isAlive = true;
+            r.currentHp = Math.max(1, Math.trunc(r.maxHp*0.3));
+            this.addEvent("Revive", target, r, r.currentHp,
+              `  【噬神之力】${r.data.name} 被拉回战场！恢复 ${r.currentHp} HP`);
+          }
+        } else {
+          const cands = ownGrid.aliveUnits().filter(u=>u!==target);
+          const pool = cands.length ? cands : [target];
+          const w = pool[Math.floor(this.rng()*pool.length)];
+          w.currentHp = w.maxHp;
+          this.addEvent("Heal", target, w, w.maxHp,
+            `  【噬神之力】${w.data.name} 被回满血！（${w.maxHp} HP）`);
         }
       }
     }
@@ -1647,7 +1659,7 @@ class BattleController{
     switch(tag.type){
       case "DevourPower": {
         const n = Math.trunc(tag.value||0);
-        caster.devourStacks = (caster.devourStacks||0) + n;
+        caster.devourStacks = Math.min(3, (caster.devourStacks||0) + n);   // 上限 3 层
         this.addEvent("Info", caster, caster, caster.devourStacks,
           `  【噬神之力】${caster.data.name} 层数 +${n}（当前 ${caster.devourStacks}）`);
         break;
