@@ -1329,10 +1329,12 @@ class BattleController{
         this.addEvent("Info", null, target, target.bonusDodgeChance,
           `  【暗影衰减】${target.data.name} 闪避率 -30%（当前附加 +${Math.round((target.bonusDodgeChance||0)*100)}%）`);
       }
-      // 【毁灭神谕】法纳斯：队友每次闪避 → 通灵点 +3
+      // 【毁灭神谕】法纳斯：每次闪避（含自己）→ 通灵点 +3
+      const fGrid = target.isPlayerSide ? this.playerGrid : this.enemyGrid;
       const fSide = target.isPlayerSide ? "player" : "enemy";
-      const fSp = this._spiritistPreferredBySide && this._spiritistPreferredBySide[fSide];
-      if(fSp && fSp !== target && fSp.data.spiritGain === "fanusi" && target.isAlive){
+      const fPref = (this._spiritistPreferredBySide || {})[fSide];
+      const fSp = (fPref ? fGrid.spiritists().find(u=>u.data.id===fPref) : null) || fGrid.spiritists()[0];
+      if(fSp && fSp.data.spiritGain === "fanusi" && target.isAlive){
         fSp.spiritPoints = (fSp.spiritPoints||0) + 3;
         this.addEvent("Info", target, fSp, fSp.spiritPoints,
           `  【毁灭神谕】${target.data.name} 闪避 → ${fSp.data.name} 通灵点 +3（${fSp.spiritPoints}/${fSp.spiritThreshold}）`);
